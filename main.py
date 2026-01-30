@@ -27,7 +27,11 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 import uvicorn
 
-DB_PATH = BASE_DIR / "database.db"
+# Render.com: 프로젝트 폴더는 읽기전용 → /tmp 사용
+if os.environ.get("RENDER"):
+    DB_PATH = Path("/tmp/database.db")
+else:
+    DB_PATH = BASE_DIR / "database.db"
 app = FastAPI()
 
 
