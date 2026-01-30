@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YOTTA LAB | My Status</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-serif { font-family: 'Playfair Display', serif; }
+        .tabular-numbers { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+        .tab-active { border-bottom: 2px solid #4f46e5; color: #4f46e5; }
+        select { text-indent: 1px; text-overflow: ''; }
+        .todo-detail-panel { max-height: 0; overflow: hidden; transition: max-height 0.35s ease-out; }
+        .todo-detail-panel.expanded { max-height: 400px; transition: max-height 0.4s ease-in; }
+    </style>
+</head>
+<body class="bg-[#fcfcfc] text-[#1a1a1a]">
+    <nav class="flex justify-between items-center px-10 py-6 bg-white border-b border-gray-100 shadow-sm">
+        <a href="/" class="text-xl font-bold tracking-tighter hover:opacity-70 transition">
+            YOTTA <span class="text-indigo-600 font-light">LAB</span>
+        </a>
+        <div class="flex items-center space-x-6">
+            <span class="text-sm font-medium text-gray-500 underline underline-offset-4 decoration-indigo-200">
+                Logged in as: <strong class="text-gray-900">{{ username }}</strong>
+            </span>
+            <a href="/logout" class="text-xs uppercase tracking-widest px-4 py-2 rounded text-gray-500 transition-all duration-200 hover:bg-black hover:text-white">Logout</a>
+        </div>
+    </nav>
+    <main class="max-w-5xl mx-auto py-16 px-6">
+        <div class="flex space-x-8 mb-12 border-b border-gray-100">
+            <button type="button" onclick="switchTab('todo')" id="btn-todo" class="pb-4 text-xs uppercase tracking-[0.2em] font-bold transition-all {{ 'tab-active' if initial_tab == 'todo' else 'text-gray-400 hover:text-indigo-600' }}">To-Do List</button>
+            <button type="button" onclick="switchTab('contribution')" id="btn-contribution" class="pb-4 text-xs uppercase tracking-[0.2em] font-bold transition-all {{ 'tab-active' if initial_tab == 'contribution' else 'text-gray-400 hover:text-indigo-600' }}">Contribution</button>
+            <button type="button" onclick="switchTab('status')" id="btn-status" class="pb-4 text-xs uppercase tracking-[0.2em] font-bold transition-all {{ 'tab-active' if initial_tab == 'status' else 'text-gray-400 hover:text-indigo-600' }}">YOTTALAB Status</button>
+        </div>
+
+        <!-- To-Do (Admin & 일반 회원 분기) -->
+        <div id="view-todo" class="{{ 'hidden' if initial_tab != 'todo' else '' }}">
+        {% if is_admin %}
+            <header class="mb-12">
+                <h2 class="text-indigo-600 font-bold uppercase tracking-[0.2em] text-xs mb-2">Admin TODO 관리</h2>
+                <h1 class="text-4xl md:text-5xl font-serif leading-tight">할 일 목록 - 등록/수정/삭제</h1>
+            </header>
+            <form method="post" action="/dashboard/admin/todo_add" class="mb-8">
+                <div class="flex flex-wrap gap-4 items-end mb-4">
+                    <div>
+                        <span class="text-xs text-gray-500 block mb-0.5">번호</span>
+                        <input type="number" name="todo_sort_order" placeholder="0" class="px-3 py-2 border rounded-md w-16 text-center" title="작은 번호가 위에 표시됨" min="0" />
+                    </div>
+                    <input required type="text" name="todo_title" class="px-4 py-2 border rounded-md flex-1 min-w-[200px]" placeholder="새 할일 입력..."/>
+                    <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">등록</button>
+                </div>
+                <div class="mb-4">
+                    <label class="text-xs text-gray-500 block mb-1">상세 내용</label>
+                    <textarea name="todo_detail" rows="3" placeholder="상세 내용 (선택)" class="w-full max-w-xl px-3 py-2 border rounded-md text-sm"></textarea>
+                </div>
+                <div class="flex flex-wrap gap-6 text-sm">
+                    <div class="flex items-center gap-4">
+                        <span class="text-gray-500 font-medium">보여줄 대상:</span>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="audience_type" value="all" checked onchange="toggleAudienceSelect(false)">
+                            <span>공통 (전체)</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="audience_type" value="members" onchange="toggleAudienceSelect(false)">
+                            <span>공통 (멤버)</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="audience_type" value="partners" onchange="toggleAudienceSelect(false)">
+                            <span>공통 (파트너)</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="audience_type" value="selected" onchange="toggleAudienceSelect(true)">
+                            <span>선택한 멤버/파트너만</span>
+                        </label>
+                    </div>
+                    <div id="audience-select" class="hidden flex flex-wrap gap-4 pl-4 border-l border-gray-200">
+                        <div>
+                            <span class="text-gray-500 text-xs block mb-1">멤버</span>
+                            <div class="flex flex-wrap gap-2">
+                                {% for m in members %}
+                                <label class="flex items-center gap-1 text-xs cursor-pointer"><input type="checkbox" name="audience_{{ m.id }}" value="1">{{ m.id }}</label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 text-xs block mb-1">파트너</span>
+                            <div class="flex flex-wrap gap-2">
+                                {% for p in partners %}
+                                <label class="flex items-center gap-1 text-xs cursor-pointer"><input type="checkbox" name="audience_{{ p.id }}" value="1">{{ p.id }}</label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+            <ul>
+                {% for todo in todos %}
+                <li class="mb-3 border border-gray-100 rounded-lg overflow-hidden">
+                    <div class="todo-row flex flex-wrap items-center gap-2 p-2 cursor-pointer hover:bg-gray-50/50" onclick="toggleTodoDetail({{ todo.id }})">
+                        <span class="todo-arrow text-gray-400 text-xs w-5">▶</span>
+                        <span class="w-8 text-center font-medium text-gray-500 tabular-nums" title="번호">{{ todo.sort_order or 0 }}</span>
+                        <form method="post" action="/dashboard/admin/todo_toggle/{{ todo.id }}" style="display:inline" onclick="event.stopPropagation()">
+                            <button type="button" class="mr-1" onclick="this.form.submit()">{{ '✅' if todo.done else '⬜' }}</button>
+                        </form>
+                        <form method="post" action="/dashboard/admin/todo_edit" id="todo-edit-form-{{ todo.id }}" class="flex flex-wrap items-center gap-2 flex-1" onclick="event.stopPropagation()">
+                            <input type="hidden" name="todo_id" value="{{ todo.id }}" />
+                            <input type="number" name="todo_sort_order" value="{{ todo.sort_order or 0 }}" class="px-2 py-1 border rounded w-12 text-center text-sm" title="번호 (낮을수록 위)" min="0" />
+                            <input type="text" name="todo_title" value="{{ todo.title }}" class="px-3 py-1 border rounded w-64 md:w-80 {{ 'line-through text-gray-400' if todo.done }}" />
+                            <input type="hidden" name="audience_type" value="{{ 'selected' if todo.audience and todo.audience not in ['all','members','partners'] else (todo.audience or 'all') }}" />
+                            {% if todo.audience and todo.audience not in ['all','members','partners'] %}
+                            {% for uid in todo.audience.split(',') %}
+                            {% if uid.strip() %}<input type="hidden" name="audience_{{ uid.strip() }}" value="1" />{% endif %}
+                            {% endfor %}
+                            {% endif %}
+                            <button type="submit" class="text-xs text-indigo-600 hover:underline">수정</button>
+                        </form>
+                        <span class="text-[10px] text-gray-400">({% if todo.audience == 'all' %}공통(전체){% elif todo.audience == 'members' %}공통(멤버){% elif todo.audience == 'partners' %}공통(파트너){% else %}선택: {{ todo.audience }}{% endif %})</span>
+                        <form method="post" action="/dashboard/admin/todo_delete/{{ todo.id }}" style="display:inline" onclick="event.stopPropagation()">
+                            <button type="submit" class="text-xs text-red-400 hover:underline" onclick="return confirm('삭제할까요?');">삭제</button>
+                        </form>
+                    </div>
+                    <div class="todo-detail-panel" id="todo-detail-{{ todo.id }}">
+                        <div class="px-4 pb-3 pt-1 bg-gray-50/50 border-t border-gray-100" onclick="event.stopPropagation()">
+                            <label class="text-xs text-gray-500 block mb-1">상세 내용</label>
+                            <textarea form="todo-edit-form-{{ todo.id }}" name="todo_detail" rows="3" class="w-full px-3 py-2 border rounded text-sm">{{ todo.detail or '' }}</textarea>
+                        </div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <header class="mb-12">
+                <h2 class="text-indigo-600 font-bold uppercase tracking-[0.2em] text-xs mb-2">Action items</h2>
+                <h1 class="text-4xl md:text-5xl font-serif leading-tight">Current Tasks</h1>
+            </header>
+            <div class="bg-white border border-gray-100 rounded-2xl p-10 shadow-sm">
+                {% if todos and todos|length > 0 %}
+                <ul>
+                    {% for todo in todos %}
+                    <li class="mb-3 border border-gray-100 rounded-lg overflow-hidden">
+                        <div class="todo-row flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-50/50 {{ 'line-through text-gray-400' if todo.done }}" onclick="toggleTodoDetail({{ todo.id }})">
+                            <span class="todo-arrow text-gray-400 text-xs w-5">▶</span>
+                            {{ '✅' if todo.done else '⬜' }} <span class="flex-1">{{ todo.title }}</span>
+                        </div>
+                        <div class="todo-detail-panel" id="todo-detail-{{ todo.id }}">
+                            <div class="px-4 pb-3 pt-1 bg-gray-50/50 border-t border-gray-100">
+                                <p class="text-sm text-gray-600 whitespace-pre-wrap">{{ todo.detail or '상세 내용 없음' }}</p>
+                            </div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                    <p class="text-gray-400 italic">No pending tasks for this period.</p>
+                {% endif %}
+            </div>
+        {% endif %}
+        </div>
+
+        <!-- Contribution (Admin & 일반 회원 분기) -->
+        <div id="view-contribution" class="{{ 'hidden' if initial_tab != 'contribution' else '' }}">
+        {% if is_admin %}
+            <header class="mb-12">
+                <h2 class="text-indigo-600 font-bold uppercase tracking-[0.2em] text-xs mb-2">납부 현황 수정</h2>
+                <h1 class="text-3xl font-serif leading-tight">Member / Partner / Backer / Customer 년/월 납부현황</h1>
+            </header>
+            <div class="flex flex-wrap gap-2 mb-8 border-b border-gray-200 pb-4">
+                <a href="/dashboard?tab=contribution&contrib=member" class="px-4 py-2 rounded text-sm font-medium {{ 'bg-indigo-600 text-white' if contrib_subtab == 'member' else 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">Member</a>
+                <a href="/dashboard?tab=contribution&contrib=partner" class="px-4 py-2 rounded text-sm font-medium {{ 'bg-emerald-600 text-white' if contrib_subtab == 'partner' else 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">Partner</a>
+                <a href="/dashboard?tab=contribution&contrib=backer" class="px-4 py-2 rounded text-sm font-medium {{ 'bg-amber-600 text-white' if contrib_subtab == 'backer' else 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">Backer</a>
+                <a href="/dashboard?tab=contribution&contrib=customer" class="px-4 py-2 rounded text-sm font-medium {{ 'bg-sky-600 text-white' if contrib_subtab == 'customer' else 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">Customer</a>
+            </div>
+
+            {% if contrib_subtab == 'member' %}
+            <form method="post" action="/dashboard/admin/edit-contrib">
+                <input type="hidden" name="contrib_type" value="member" />
+                <input type="hidden" name="contrib_subtab" value="member" />
+                <div class="space-y-8">
+                    {% for member, yearly in member_data.items() %}
+                    <div class="border rounded-xl p-4 bg-white shadow">
+                        <h2 class="text-lg font-semibold mb-3 text-indigo-600">{{ member }}</h2>
+                        {% for year, months in yearly.items() %}
+                            <div class="mb-2 text-sm">
+                            <strong>{{ year }}</strong>:
+                            {% for idx in range(12) %}
+                                <label class="inline-flex items-center mr-2 text-xs">
+                                    <input type="checkbox" name="data_{{member}}_{{year}}_{{idx}}" {% if months[idx] %}checked{% endif %} class="accent-indigo-500" />
+                                    {{ idx+1 }}월
+                                </label>
+                            {% endfor %}
+                            </div>
+                        {% endfor %}
+                        <div class="mt-3 pt-3 border-t border-gray-100">
+                            <label class="block text-[10px] uppercase tracking-widest text-gray-400 mb-1">Note{% if member_note_dates.get(member) %} <span class="font-normal text-gray-500">({{ format_note_date(member_note_dates.get(member)) }})</span>{% endif %}</label>
+                            <input type="text" name="note_{{ member }}" value="{{ member_notes.get(member, '') }}" placeholder="한 줄 메모" class="w-full max-w-md px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-indigo-500" />
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="submit" class="mt-8 px-8 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">저장</button>
+            </form>
+            {% elif contrib_subtab == 'partner' %}
+            <form method="post" action="/dashboard/admin/edit-contrib">
+                <input type="hidden" name="contrib_type" value="partner" />
+                <input type="hidden" name="contrib_subtab" value="partner" />
+                <div class="space-y-8">
+                    {% for partner, yearly in partner_data.items() %}
+                    <div class="border rounded-xl p-4 bg-white shadow">
+                        <h2 class="text-lg font-semibold mb-3 text-emerald-600">{{ partner }}</h2>
+                        {% for year, months in yearly.items() %}
+                            <div class="mb-2 text-sm">
+                            <strong>{{ year }}</strong>:
+                            {% for idx in range(12) %}
+                                <label class="inline-flex items-center mr-2 text-xs">
+                                    <input type="checkbox" name="data_{{partner}}_{{year}}_{{idx}}" {% if months[idx] %}checked{% endif %} class="accent-emerald-500" />
+                                    {{ idx+1 }}월
+                                </label>
+                            {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if partner_data %}<button type="submit" class="mt-8 px-8 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700">저장</button>{% else %}<p class="text-gray-500 italic">등록된 Partner가 없습니다.</p>{% endif %}
+            </form>
+            {% elif contrib_subtab == 'backer' %}
+            <form method="post" action="/dashboard/admin/edit-contrib">
+                <input type="hidden" name="contrib_type" value="backer" />
+                <input type="hidden" name="contrib_subtab" value="backer" />
+                <div class="space-y-8">
+                    {% for backer, yearly in backer_data.items() %}
+                    <div class="border rounded-xl p-4 bg-white shadow">
+                        <h2 class="text-lg font-semibold mb-3 text-amber-600">{{ backer }}</h2>
+                        {% for year, months in yearly.items() %}
+                            <div class="mb-2 text-sm">
+                            <strong>{{ year }}</strong>:
+                            {% for idx in range(12) %}
+                                <label class="inline-flex items-center mr-2 text-xs">
+                                    <input type="checkbox" name="data_{{backer}}_{{year}}_{{idx}}" {% if months[idx] %}checked{% endif %} class="accent-amber-500" />
+                                    {{ idx+1 }}월
+                                </label>
+                            {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if backer_data %}<button type="submit" class="mt-8 px-8 py-2 bg-amber-600 text-white rounded hover:bg-amber-700">저장</button>{% else %}<p class="text-gray-500 italic">등록된 Backer가 없습니다.</p>{% endif %}
+            </form>
+            {% elif contrib_subtab == 'customer' %}
+            <form method="post" action="/dashboard/admin/edit-contrib">
+                <input type="hidden" name="contrib_type" value="customer" />
+                <input type="hidden" name="contrib_subtab" value="customer" />
+                <div class="space-y-8">
+                    {% for customer, yearly in customer_data.items() %}
+                    <div class="border rounded-xl p-4 bg-white shadow">
+                        <h2 class="text-lg font-semibold mb-3 text-sky-600">{{ customer }}</h2>
+                        {% for year, months in yearly.items() %}
+                            <div class="mb-2 text-sm">
+                            <strong>{{ year }}</strong>:
+                            {% for idx in range(12) %}
+                                <label class="inline-flex items-center mr-2 text-xs">
+                                    <input type="checkbox" name="data_{{customer}}_{{year}}_{{idx}}" {% if months[idx] %}checked{% endif %} class="accent-sky-500" />
+                                    {{ idx+1 }}월
+                                </label>
+                            {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if customer_data %}<button type="submit" class="mt-8 px-8 py-2 bg-sky-600 text-white rounded hover:bg-sky-700">저장</button>{% else %}<p class="text-gray-500 italic">등록된 Customer가 없습니다.</p>{% endif %}
+            </form>
+            {% endif %}
+        {% else %}
+            <!-- 기존 회원 기여 현황 뷰 유지 -->
+            <header class="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
+                <div>
+                    <h2 class="text-indigo-600 font-bold uppercase tracking-[0.2em] text-xs mb-2">{% if user_role == 'partner' %}Partner Dashboard{% elif user_role == 'backer' %}Backer Dashboard{% elif user_role == 'customer' %}Customer Dashboard{% else %}Member Dashboard{% endif %}</h2>
+                    <h1 class="text-4xl md:text-5xl font-serif leading-tight">Contribution Tracking <br> for <span class="italic text-gray-700">{{ username }}</span></h1>
+                </div>
+                <div class="w-full md:w-auto">
+                    <label class="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">Select Fiscal Year</label>
+                    <select onchange="location.href='/dashboard?year=' + this.value + '&tab=contribution'" 
+                            class="tabular-numbers w-full md:w-32 border-b-2 border-gray-900 bg-transparent py-2 text-lg font-bold focus:outline-none focus:border-indigo-500 transition cursor-pointer">
+                        {% for y in years %}
+                        <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </header>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
+                <div class="bg-white p-10 border border-gray-100 shadow-xl shadow-gray-100/50 rounded-2xl">
+                    <p class="text-[10px] uppercase tracking-[0.3em] text-gray-400 mb-4">Yearly Performance</p>
+                    <div class="flex items-baseline tabular-numbers">
+                        <span class="text-6xl font-serif font-bold">{{ total_count }}</span>
+                        <span class="text-gray-300 text-2xl ml-4 font-light">/ 12 Months Paid</span>
+                    </div>
+                </div>
+                <div class="bg-indigo-600 p-10 rounded-2xl shadow-xl shadow-indigo-100 text-white relative overflow-hidden">
+                    <div class="relative z-10 tabular-numbers">
+                        <p class="text-[10px] uppercase tracking-[0.3em] text-indigo-200 mb-4">Current Selection</p>
+                        <p class="text-6xl font-serif font-bold">{{ year }}</p>
+                    </div>
+                    <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {% for item in status_list %}
+                <div class="border p-6 rounded-xl flex flex-col items-center justify-center transition-all hover:shadow-md {% if item.paid %} bg-gray-900 border-gray-800 shadow-lg {% else %} bg-white border-gray-100 {% endif %}">
+                    <span class="text-[10px] font-bold uppercase mb-4 tracking-tighter text-gray-400">{{ item.month }}</span>
+                    {% if item.paid %}
+                        <div class="text-emerald-400"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg></div>
+                    {% else %}
+                        <div class="text-gray-200"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></div>
+                    {% endif %}
+                    <span class="mt-4 text-[10px] font-bold uppercase tracking-widest {% if item.paid %}text-white{% else %}text-gray-300{% endif %}">
+                        {% if item.paid %}Completed{% else %}Pending{% endif %}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="mt-6 pt-6 border-t border-gray-100">
+                <p class="text-[10px] uppercase tracking-widest text-gray-400 mb-1">Note</p>
+                <p class="text-gray-700">{% if member_note_date %}{{ member_note_date }} : {% endif %}{{ member_note or '—' }}</p>
+            </div>
+        {% endif %}
+        </div>
+
+        <div id="view-status" class="{{ 'hidden' if initial_tab != 'status' else '' }}">
+            <header class="mb-12">
+                <h2 class="text-indigo-600 font-bold uppercase tracking-[0.2em] text-xs mb-2">Network Directory</h2>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-4xl md:text-5xl font-serif leading-tight">YOTTALAB Universe</h1>
+                    <div class="group relative flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-400 cursor-help hover:text-indigo-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div class="absolute left-full ml-3 px-3 py-2 bg-gray-800 text-white text-[11px] font-sans rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-300 whitespace-nowrap shadow-xl z-10" id="universe-tooltip">
+                            YOTTALAB의 전 세계 파트너 및 멤버 네트워크 시스템을 의미합니다.
+                            <div class="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 w-2 h-2 bg-gray-800 rotate-45"></div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            {% if is_admin %}
+            <div class="mb-16">
+                <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-6 flex items-center">
+                    <span class="w-8 h-px bg-gray-200 mr-4"></span> Admin 계정 (비밀번호 변경)
+                </h3>
+                {% if pwd_ok %}<p class="text-green-600 text-sm mb-3">비밀번호가 변경되었습니다.</p>{% endif %}
+                {% if pwd_error == 'invalid' %}<p class="text-red-600 text-sm mb-3">현재 비밀번호가 올바르지 않습니다.</p>{% endif %}
+                {% if pwd_error == '1' %}<p class="text-red-600 text-sm mb-3">새 비밀번호와 확인이 일치하지 않거나 최소 4자 이상이어야 합니다.</p>{% endif %}
+                <div class="p-4 bg-amber-50/50 border border-amber-100 rounded-xl mb-6">
+                    <div class="flex flex-wrap items-end gap-4">
+                        <div>
+                            <span class="text-xs text-gray-500 block mb-1">아이디</span>
+                            <span class="font-bold text-gray-800">admin</span>
+                        </div>
+                        <div>
+                            <span class="text-xs text-gray-500 block mb-1">비밀번호</span>
+                            <span class="text-gray-800 font-mono">{{ admin_password }}</span>
+                        </div>
+                        <form method="post" action="/dashboard/admin/password/change" class="flex flex-wrap gap-2 items-end">
+                            <input type="password" name="current_password" required placeholder="현재 비밀번호" class="px-3 py-2 border rounded text-sm w-36" autocomplete="current-password" />
+                            <input type="password" name="new_password" required placeholder="새 비밀번호" class="px-3 py-2 border rounded text-sm w-36" autocomplete="new-password" minlength="4" />
+                            <input type="password" name="new_password_confirm" required placeholder="새 비밀번호 확인" class="px-3 py-2 border rounded text-sm w-36" autocomplete="new-password" minlength="4" />
+                            <button type="submit" class="px-4 py-2 bg-amber-600 text-white rounded text-sm hover:bg-amber-700">비밀번호 변경</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="mb-16">
+                <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-6 flex items-center">
+                    <span class="w-8 h-px bg-gray-200 mr-4"></span> Member List (추가·수정·삭제)
+                </h3>
+                <form method="post" action="/dashboard/admin/member/add" class="flex flex-wrap gap-4 mb-6 p-4 bg-white rounded-xl border border-gray-100">
+                    <input type="number" name="member_sort_order" placeholder="순서" class="px-3 py-2 border rounded text-sm w-16" title="작은 번호가 앞에 표시됨" />
+                    <input type="text" name="member_id" required placeholder="아이디(이름)" class="px-3 py-2 border rounded text-sm" />
+                    <input type="text" name="member_password" required placeholder="비밀번호" class="px-3 py-2 border rounded text-sm" />
+                    <input type="text" name="member_equity" placeholder="지분 보유" class="px-3 py-2 border rounded text-sm" title="예: 10%, 1/5 등" />
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700">추가</button>
+                </form>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm border border-gray-200 rounded-xl overflow-hidden">
+                        <thead class="bg-gray-50">
+                            <tr><th class="text-left p-3 w-16">순서</th><th class="text-left p-3">아이디(이름)</th><th class="text-left p-3">비밀번호</th><th class="text-left p-3">지분 보유</th><th class="text-left p-3 text-gray-500">최종 로그인</th><th class="p-3 w-16"></th><th class="p-3 w-16"></th></tr>
+                        </thead>
+                        <tbody>
+                            {% for m in members %}
+                            <tr class="border-t border-gray-100">
+                                <form method="post" action="/dashboard/admin/member/edit" id="form-member-{{ m.id }}" style="display:contents">
+                                    <td class="p-3"><input type="hidden" name="member_id" value="{{ m.id }}" /><input type="number" name="member_sort_order" value="{{ m.sort_order }}" class="px-2 py-1 border rounded w-14 text-center" title="작은 번호가 앞에 표시" /></td>
+                                    <td class="p-3 font-medium">{{ m.id }}</td>
+                                    <td class="p-3"><input type="text" name="member_password" value="{{ m.password }}" class="px-2 py-1 border rounded w-40" /></td>
+                                    <td class="p-3"><input type="text" name="member_equity" value="{{ m.equity or '' }}" placeholder="예: 10%" class="px-2 py-1 border rounded w-24" /></td>
+                                    <td class="p-3 text-gray-500 text-xs">
+                                        {% if m.last_login_at %}{{ m.last_login_at }}{% if m.last_login_ip %} ({{ m.last_login_ip }}){% endif %}{% else %}—{% endif %}
+                                    </td>
+                                    <td class="p-3">
+                                        <button type="submit" class="text-indigo-600 hover:underline text-xs">수정</button>
+                                    </td>
+                                </form>
+                                <td class="p-3">
+                                    <form method="post" action="/dashboard/admin/member/delete" class="inline" onsubmit="return confirm('삭제할까요?');">
+                                        <input type="hidden" name="member_id" value="{{ m.id }}" />
+                                        <button type="submit" class="text-red-500 hover:underline text-xs">삭제</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="mb-16">
+                <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-6 flex items-center">
+                    <span class="w-8 h-px bg-gray-200 mr-4"></span> 멤버 뱃지 관리 (추가·수정·삭제)
+                </h3>
+                <p class="text-xs text-gray-500 mb-4">각 멤버별로 수행한 미션을 뱃지로 등록할 수 있습니다. 10종류의 아이콘 중 선택 가능합니다.</p>
+                {% for m in members_with_badges %}
+                <div class="mb-6 p-4 bg-white rounded-xl border border-gray-100">
+                    <div class="font-bold text-indigo-600 mb-3">{{ m.id }}</div>
+                    <div class="flex flex-wrap gap-2 mb-3">
+                        {% for b in m.badges %}
+                        <span class="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-full text-sm" data-badge-wrap>
+                            <span class="text-lg">{% if badge_icons and (b.icon_type or 1) >= 1 and (b.icon_type or 1) <= (badge_icons|length) %}{{ badge_icons[(b.icon_type or 1) - 1][0] }}{% else %}⭐{% endif %}</span>
+                            <span class="badge-label">{{ b.mission_name }}</span>
+                            <form method="post" action="/dashboard/admin/badge/edit" class="hidden badge-edit-form inline-flex gap-1 items-center" id="edit-{{ b.id }}">
+                                <input type="hidden" name="badge_id" value="{{ b.id }}" />
+                                <input type="text" name="mission_name" value="{{ b.mission_name }}" class="px-2 py-0.5 border rounded text-xs w-24" />
+                                <select name="icon_type" class="px-1 py-0.5 border rounded text-xs">
+                                    {% for icon in badge_icons %}
+                                    <option value="{{ loop.index }}" {{ 'selected' if (b.icon_type or 1) == loop.index else '' }}>{{ icon[0] }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="text-indigo-600 text-xs">저장</button>
+                            </form>
+                            <button type="button" onclick="toggleBadgeEdit({{ b.id }})" class="text-indigo-400 hover:text-indigo-600 text-xs ml-0.5 badge-edit-btn">수정</button>
+                            <form method="post" action="/dashboard/admin/badge/delete" class="inline" onsubmit="return confirm('삭제할까요?');">
+                                <input type="hidden" name="badge_id" value="{{ b.id }}" />
+                                <button type="submit" class="text-red-400 hover:text-red-600 text-xs ml-0.5">✕</button>
+                            </form>
+                        </span>
+                        {% endfor %}
+                    </div>
+                    <form method="post" action="/dashboard/admin/badge/add" class="flex flex-wrap gap-2 items-center">
+                        <input type="hidden" name="member_id" value="{{ m.id }}" />
+                        <input type="text" name="mission_name" required placeholder="수행한 미션 이름" class="px-3 py-2 border rounded text-sm w-40" />
+                        <select name="icon_type" class="px-3 py-2 border rounded text-sm">
+                            {% for icon in badge_icons %}
+                            <option value="{{ loop.index }}">{{ icon[0] }} {{ icon[1] }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700">추가</button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div>
+                <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-6 flex items-center">
+                    <span class="w-8 h-px bg-gray-200 mr-4"></span> Partner List (추가·수정·삭제)
+                </h3>
+                <form method="post" action="/dashboard/admin/partner/add" class="flex flex-wrap gap-4 mb-6 p-4 bg-white rounded-xl border border-gray-100">
+                    <input type="number" name="partner_sort_order" placeholder="순서" class="px-3 py-2 border rounded text-sm w-16" title="작은 번호가 앞에 표시됨" />
+                    <input type="text" name="partner_id" required placeholder="아이디(이름)" class="px-3 py-2 border rounded text-sm" />
+                    <input type="text" name="partner_password" required placeholder="비밀번호" class="px-3 py-2 border rounded text-sm" />
+                    <input type="text" name="partner_equity" placeholder="지분 보유" class="px-3 py-2 border rounded text-sm" title="예: 10%, 1/5 등" />
+                    <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded text-sm hover:bg-emerald-700">추가</button>
+                </form>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm border border-gray-200 rounded-xl overflow-hidden">
+                        <thead class="bg-gray-50">
+                            <tr><th class="text-left p-3 w-16">순서</th><th class="text-left p-3">아이디(이름)</th><th class="text-left p-3">비밀번호</th><th class="text-left p-3">지분 보유</th><th class="text-left p-3 text-gray-500">최종 로그인</th><th class="p-3 w-16"></th><th class="p-3 w-16"></th></tr>
+                        </thead>
+                        <tbody>
+                            {% for p in partners %}
+                            <tr class="border-t border-gray-100">
+                                <form method="post" action="/dashboard/admin/partner/edit" id="form-partner-{{ p.id }}" style="display:contents">
+                                    <td class="p-3"><input type="hidden" name="partner_id" value="{{ p.id }}" /><input type="number" name="partner_sort_order" value="{{ p.sort_order }}" class="px-2 py-1 border rounded w-14 text-center" title="작은 번호가 앞에 표시" /></td>
+                                    <td class="p-3 font-medium">{{ p.id }}</td>
+                                    <td class="p-3"><input type="text" name="partner_password" value="{{ p.password }}" class="px-2 py-1 border rounded w-40" /></td>
+                                    <td class="p-3"><input type="text" name="partner_equity" value="{{ p.equity or '' }}" placeholder="예: 10%" class="px-2 py-1 border rounded w-24" /></td>
+                                    <td class="p-3 text-gray-500 text-xs">
+                                        {% if p.last_login_at %}{{ p.last_login_at }}{% if p.last_login_ip %} ({{ p.last_login_ip }}){% endif %}{% else %}—{% endif %}
+                                    </td>
+                                    <td class="p-3">
+                                        <button type="submit" class="text-indigo-600 hover:underline text-xs">수정</button>
+                                    </td>
+                                </form>
+                                <td class="p-3">
+                                    <form method="post" action="/dashboard/admin/partner/delete" class="inline" onsubmit="return confirm('삭제할까요?');">
+                                        <input type="hidden" name="partner_id" value="{{ p.id }}" />
+                                        <button type="submit" class="text-red-500 hover:underline text-xs">삭제</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="mb-16">
+                <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-6 flex items-center">
+                    <span class="w-8 h-px bg-gray-200 mr-4"></span> Backer List (추가·수정·삭제)
+                </h3>
+                <form method="post" action="/dashboard/admin/backer/add" class="flex flex-wrap gap-4 mb-6 p-4 bg-white rounded-xl border border-gray-100">
+                    <input type="number" name="backer_sort_order" placeholder="순서" class="px-3 py-2 border rounded text-sm w-16" title="작은 번호가 앞에 표시됨" />
+                    <input type="text" name="backer_id" required placeholder="아이디(이름)" class="px-3 py-2 border rounded text-sm" />
+                    <input type="text" name="backer_password" required placeholder="비밀번호" class="px-3 py-2 border rounded text-sm" />
+                    <input type="text" name="backer_equity" placeholder="지분 보유" class="px-3 py-2 border rounded text-sm" title="예: 10%, 1/5 등" />
+                    <button type="submit" class="px-4 py-2 bg-amber-600 text-white rounded text-sm hover:bg-amber-700">추가</button>
+                </form>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm border border-gray-200 rounded-xl overflow-hidden">
+                        <thead class="bg-gray-50">
+                            <tr><th class="text-left p-3 w-16">순서</th><th class="text-left p-3">아이디(이름)</th><th class="text-left p-3">비밀번호</th><th class="text-left p-3">지분 보유</th><th class="text-left p-3 text-gray-500">최종 로그인</th><th class="p-3 w-16"></th><th class="p-3 w-16"></th></tr>
+                        </thead>
+                        <tbody>
+                            {% for b in backers %}
+                            <tr class="border-t border-gray-100">
+                                <form method="post" action="/dashboard/admin/backer/edit" id="form-backer-{{ b.id }}" style="display:contents">
+                                    <td class="p-3"><input type="hidden" name="backer_id" value="{{ b.id }}" /><input type="number" name="backer_sort_order" value="{{ b.sort_order }}" class="px-2 py-1 border rounded w-14 text-center" title="작은 번호가 앞에 표시" /></td>
+                                    <td class="p-3 font-medium">{{ b.id }}</td>
+                                    <td class="p-3"><input type="text" name="backer_password" value="{{ b.password }}" class="px-2 py-1 border rounded w-40" /></td>
+                                    <td class="p-3"><input type="text" name="backer_equity" value="{{ b.equity or '' }}" placeholder="예: 10%" class="px-2 py-1 border rounded w-24" /></td>
+                                    <td class="p-3 text-gray-500 text-xs">
+                                        {% if b.last_login_at %}{{ b.last_login_at }}{% if b.last_login_ip %} ({{ b.last_login_ip }}){% endif %}{% else %}—{% endif %}
+                                    </td>
+                                    <td class="p-3">
+                                        <button type="submit" class="text-indigo-600 hover:underline text-xs">수정</button>
+                                    </td>
+                                </form>
+                                <td class="p-3">
+                                    <form method="post" action="/dashboard/admin/backer/delete" class="inline" onsubmit="return confirm('삭제할까요?');">
+                                        <input type="hidden" name="backer_id" value="{{ b.id }}" />
+                                        <button type="submit" class="text-red-500 hover:underline text-xs">삭제</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="mb-16">
+                <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-6 flex items-center">
+                    <span class="w-8 h-px bg-gray-200 mr-4"></span> Customer List (추가·수정·삭제)
+                </h3>
+                <form method="post" action="/dashboard/admin/customer/add" class="flex flex-wrap gap-4 mb-6 p-4 bg-white rounded-xl border border-gray-100">
+                    <input type="number" name="customer_sort_order" placeholder="순서" class="px-3 py-2 border rounded text-sm w-16" title="작은 번호가 앞에 표시됨" />
+                    <input type="text" name="customer_id" required placeholder="아이디(이름)" class="px-3 py-2 border rounded text-sm" />
+                    <input type="text" name="customer_password" required placeholder="비밀번호" class="px-3 py-2 border rounded text-sm" />
+                    <input type="text" name="customer_equity" placeholder="지분 보유" class="px-3 py-2 border rounded text-sm" title="예: 10%, 1/5 등" />
+                    <button type="submit" class="px-4 py-2 bg-sky-600 text-white rounded text-sm hover:bg-sky-700">추가</button>
+                </form>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm border border-gray-200 rounded-xl overflow-hidden">
+                        <thead class="bg-gray-50">
+                            <tr><th class="text-left p-3 w-16">순서</th><th class="text-left p-3">아이디(이름)</th><th class="text-left p-3">비밀번호</th><th class="text-left p-3">지분 보유</th><th class="text-left p-3 text-gray-500">최종 로그인</th><th class="p-3 w-16"></th><th class="p-3 w-16"></th></tr>
+                        </thead>
+                        <tbody>
+                            {% for c in customers %}
+                            <tr class="border-t border-gray-100">
+                                <form method="post" action="/dashboard/admin/customer/edit" id="form-customer-{{ c.id }}" style="display:contents">
+                                    <td class="p-3"><input type="hidden" name="customer_id" value="{{ c.id }}" /><input type="number" name="customer_sort_order" value="{{ c.sort_order }}" class="px-2 py-1 border rounded w-14 text-center" title="작은 번호가 앞에 표시" /></td>
+                                    <td class="p-3 font-medium">{{ c.id }}</td>
+                                    <td class="p-3"><input type="text" name="customer_password" value="{{ c.password }}" class="px-2 py-1 border rounded w-40" /></td>
+                                    <td class="p-3"><input type="text" name="customer_equity" value="{{ c.equity or '' }}" placeholder="예: 10%" class="px-2 py-1 border rounded w-24" /></td>
+                                    <td class="p-3 text-gray-500 text-xs">
+                                        {% if c.last_login_at %}{{ c.last_login_at }}{% if c.last_login_ip %} ({{ c.last_login_ip }}){% endif %}{% else %}—{% endif %}
+                                    </td>
+                                    <td class="p-3">
+                                        <button type="submit" class="text-indigo-600 hover:underline text-xs">수정</button>
+                                    </td>
+                                </form>
+                                <td class="p-3">
+                                    <form method="post" action="/dashboard/admin/customer/delete" class="inline" onsubmit="return confirm('삭제할까요?');">
+                                        <input type="hidden" name="customer_id" value="{{ c.id }}" />
+                                        <button type="submit" class="text-red-500 hover:underline text-xs">삭제</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% else %}
+            {% if is_partner %}
+            <div class="py-16 text-center">
+                <p class="text-gray-500 text-lg">Only members can use this.</p>
+            </div>
+            {% else %}
+            <div class="mb-16">
+                <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-6 flex items-center">
+                    <span class="w-8 h-px bg-gray-200 mr-4"></span> Member List
+                </h3>
+                <div id="member-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+            </div>
+            <div class="mb-16">
+                <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-6 flex items-center">
+                    <span class="w-8 h-px bg-gray-200 mr-4"></span> Partner List
+                </h3>
+                <div id="partner-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+            </div>
+            <div class="mb-16">
+                <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-6 flex items-center">
+                    <span class="w-8 h-px bg-gray-200 mr-4"></span> Backer List
+                </h3>
+                <div id="backer-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+            </div>
+            <div>
+                <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-6 flex items-center">
+                    <span class="w-8 h-px bg-gray-200 mr-4"></span> Customer List
+                </h3>
+                <div id="customer-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+    </main>
+    <footer class="py-20 text-center border-t border-gray-50">
+        <p class="text-xs text-gray-400 tracking-[0.5em] uppercase">&copy; 2026 YOTTA LAB Global Consulting Group</p>
+    </footer>
+    <script>
+        const universeDescription = "YOTTALAB의 글로벌 파트너십과 지사 네트워크를 통합 관리하는 디렉토리입니다.";
+        const tooltipEl = document.getElementById('universe-tooltip');
+        if (tooltipEl) tooltipEl.innerText = universeDescription;
+
+        function toggleAudienceSelect(show) {
+            const el = document.getElementById('audience-select');
+            if (el) el.classList.toggle('hidden', !show);
+        }
+
+        function toggleTodoDetail(todoId) {
+            const panel = document.getElementById('todo-detail-' + todoId);
+            if (!panel) return;
+            const isExpanded = panel.classList.toggle('expanded');
+            const li = panel.closest('li');
+            const arrow = li ? li.querySelector('.todo-arrow') : null;
+            if (arrow) arrow.textContent = isExpanded ? '▼' : '▶';
+        }
+
+        function toggleBadgeEdit(badgeId) {
+            const form = document.getElementById('edit-' + badgeId);
+            if (!form) return;
+            const parent = form.closest('[data-badge-wrap]');
+            if (!parent) return;
+            const label = parent.querySelector('.badge-label');
+            const btn = parent.querySelector('.badge-edit-btn');
+            const isEditing = !form.classList.contains('hidden');
+            if (isEditing) {
+                form.classList.add('hidden');
+                if (label) label.classList.remove('hidden');
+                if (btn) btn.textContent = '수정';
+            } else {
+                form.classList.remove('hidden');
+                if (label) label.classList.add('hidden');
+                if (btn) btn.textContent = '취소';
+                const inp = form.querySelector('input[name="mission_name"]');
+                if (inp) { inp.focus(); inp.select(); }
+            }
+        }
+
+        function switchTab(tab) {
+            const todoView = document.getElementById('view-todo');
+            const contributionView = document.getElementById('view-contribution');
+            const statusView = document.getElementById('view-status');
+            const btnTodo = document.getElementById('btn-todo');
+            const btnContribution = document.getElementById('btn-contribution');
+            const btnStatus = document.getElementById('btn-status');
+            [todoView, contributionView, statusView].forEach(view => view.classList.add('hidden'));
+            [btnTodo, btnContribution, btnStatus].forEach(btn => {
+                btn.classList.remove('tab-active');
+                btn.classList.add('text-gray-400');
+            });
+            if (tab === 'todo') {
+                todoView.classList.remove('hidden');
+                btnTodo.classList.add('tab-active'); btnTodo.classList.remove('text-gray-400');
+            } else if (tab === 'contribution') {
+                contributionView.classList.remove('hidden');
+                btnContribution.classList.add('tab-active'); btnContribution.classList.remove('text-gray-400');
+            } else if (tab === 'status') {
+                statusView.classList.remove('hidden');
+                btnStatus.classList.add('tab-active'); btnStatus.classList.remove('text-gray-400');
+            }
+        }
+
+        try {
+            const membersData = {{ members_json | safe }};
+            const partnersData = {{ partners_json | safe }};
+            const backersData = {{ backers_json | safe }} || [];
+            const customersData = {{ customers_json | safe }} || [];
+            const badgeIcons = {{ badge_icons_json | safe }} || [];
+            const escape = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            const memberGrid = document.getElementById('member-grid');
+            if (memberGrid && Array.isArray(membersData)) {
+                memberGrid.innerHTML = membersData.map((m, i) => {
+                    const num = (i + 1);
+                    const badges = (m.badges || []).slice(0, 20);
+                    const rows = [];
+                    for (let r = 0; r < 4; r++) {
+                        let row = '<div class="grid grid-cols-5 gap-1">';
+                        for (let c = 0; c < 5; c++) {
+                            const idx = r * 5 + c;
+                            const b = badges[idx];
+                            if (b) {
+                                const iconType = Math.max(1, Math.min(10, b.icon_type || 1));
+                                const emoji = (badgeIcons[iconType - 1] && badgeIcons[iconType - 1][0]) || '⭐';
+                                const tip = escape(b.mission_name);
+                                row += '<span class="relative group/badge w-7 h-7 flex items-center justify-center text-lg rounded bg-indigo-50 cursor-help" title="' + tip + '">' + emoji + '<span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded whitespace-nowrap opacity-0 group-hover/badge:opacity-100 pointer-events-none transition-opacity z-10">' + tip + '</span></span>';
+                            } else {
+                                row += '<span class="w-7 h-7 flex items-center justify-center rounded bg-gray-50/50"></span>';
+                            }
+                        }
+                        row += '</div>';
+                        rows.push(row);
+                    }
+                    const badgeArea = '<div class="mt-2 space-y-1">' + rows.join('') + '</div>';
+                    return '<div class="bg-white p-4 border border-gray-100 rounded-2xl shadow-sm flex flex-col w-full min-h-[200px]"><div class="flex items-center gap-2 mb-1"><div class="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">' + num + '</div><span class="text-xs font-bold text-indigo-600 truncate">' + escape(m.id) + '</span></div>' + badgeArea + '</div>';
+                }).join('');
+            }
+            const partnerGrid = document.getElementById('partner-grid');
+            if (partnerGrid && Array.isArray(partnersData)) {
+                partnerGrid.innerHTML = partnersData.map((p, i) => {
+                    const num = (i + 1);
+                    return '<div class="bg-white p-4 border border-emerald-100 rounded-2xl shadow-sm flex flex-col w-full min-h-[200px]"><div class="flex items-center gap-2"><div class="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">' + num + '</div><span class="text-xs font-bold text-emerald-600 truncate">' + escape(p.id) + '</span></div></div>';
+                }).join('');
+            }
+            const backerGrid = document.getElementById('backer-grid');
+            if (backerGrid && Array.isArray(backersData)) {
+                backerGrid.innerHTML = backersData.map((b, i) => {
+                    const num = (i + 1);
+                    return '<div class="bg-white p-4 border border-amber-100 rounded-2xl shadow-sm flex flex-col w-full min-h-[200px]"><div class="flex items-center gap-2"><div class="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">' + num + '</div><span class="text-xs font-bold text-amber-600 truncate">' + escape(b.id) + '</span></div></div>';
+                }).join('');
+            }
+            const customerGrid = document.getElementById('customer-grid');
+            if (customerGrid && Array.isArray(customersData)) {
+                customerGrid.innerHTML = customersData.map((c, i) => {
+                    const num = (i + 1);
+                    return '<div class="bg-white p-4 border border-sky-100 rounded-2xl shadow-sm flex flex-col w-full min-h-[200px]"><div class="flex items-center gap-2"><div class="w-8 h-8 bg-sky-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">' + num + '</div><span class="text-xs font-bold text-sky-600 truncate">' + escape(c.id) + '</span></div></div>';
+                }).join('');
+            }
+        } catch (e) {}
+    </script>
+</body>
+</html>

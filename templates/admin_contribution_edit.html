@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Contribution Editor</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss/dist/tailwind.min.css"/>
+</head>
+<body class="bg-gray-50 text-black">
+    <div class="max-w-5xl mx-auto mt-16">
+        <h1 class="text-2xl font-bold mb-6">멤버별 월별 납부 현황 수정 (Admin 화면)</h1>
+        <form method="post">
+        {% for member, yearly in member_data.items() %}
+            <div class="mb-8 border rounded-xl p-4 bg-white shadow">
+                <h2 class="text-lg font-semibold mb-3">{{ member }}</h2>
+                {% for year, months in yearly.items() %}
+                <div class="mb-2">
+                    <strong>{{ year }}</strong>:
+                    {% for idx in range(12) %}
+                        <label class="inline-flex items-center mr-2 text-xs">
+                            <input type="checkbox" name="data_{{member}}_{{year}}_{{idx}}" {% if months[idx] %}checked{% endif %} class="accent-indigo-500" />
+                            {{ months[idx] and "O" or "X" }} {{ idx+1 }}월
+                        </label>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+            <button type="submit" class="mt-8 px-8 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">저장</button>
+        </form>
+        <div class="mt-4">
+            <a href="/dashboard" class="text-indigo-500 underline">대시보드로 돌아가기</a>
+        </div>
+    </div>
+</body>
+</html>

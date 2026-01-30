@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>정부지원사업 컨시어지 | YOTTA LAB</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Playfair+Display:ital@0;1&display=swap" rel="stylesheet">
+    <style>
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Inter', sans-serif; background-color: #0a0a0a; color: #ffffff; }
+        .font-serif { font-family: 'Playfair Display', serif; }
+        .gradient-text {
+            background: linear-gradient(to right, #ffffff, #4f46e5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <nav class="flex justify-between items-center px-8 py-6 fixed w-full z-50 bg-black/50 backdrop-blur-md">
+        <a href="/" class="text-2xl font-bold tracking-tighter hover:opacity-80 transition-opacity">
+            YOTTA <span class="font-light text-indigo-500">LAB</span>
+        </a>        
+        <div class="hidden md:flex space-x-10 text-sm uppercase tracking-widest text-gray-400 items-center">
+            <a href="/#services" class="hover:text-white transition">Service</a>
+            <a href="/#insight" class="hover:text-white transition">Insight</a>
+            <a href="/#price" class="hover:text-white transition">Price</a>
+            <a href="/#contact" class="hover:text-white transition">Contact</a>
+            {% if username %}
+                <div class="flex items-center space-x-6 border-l border-gray-800 pl-10">
+                    <span class="text-[10px] text-indigo-400 lowercase tracking-normal">
+                        signed in as <strong class="text-white ml-1">{{ username }}</strong>
+                    </span>
+                    <a href="/dashboard" class="text-white font-bold hover:text-indigo-400 transition">Dashboard</a>
+                    <a href="/logout" class="text-xs bg-white text-black px-4 py-1.5 hover:bg-indigo-500 hover:text-white transition">Logout</a>
+                </div>
+            {% else %}
+                <a href="/login" class="px-6 py-2 border border-gray-700 text-white hover:bg-white hover:text-black transition">Login</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <section class="min-h-screen flex flex-col justify-center items-center px-6 text-center pt-20">
+        <h2 class="text-sm uppercase tracking-[0.5em] text-indigo-500 mb-4">Demo Concierge</h2>
+        <h1 class="text-4xl md:text-6xl font-serif mb-8 gradient-text leading-tight">
+            정부지원사업 컨시어지
+        </h1>
+        <p class="max-w-2xl text-gray-400 text-lg font-light leading-relaxed mb-8">
+            정부지원사업 맞춤 컨시어지 서비스입니다.
+        </p>
+        <button type="button" id="btn-fetch" class="mt-6 border border-indigo-500 px-10 py-4 text-indigo-400 hover:bg-indigo-500/20 transition-all duration-300 tracking-widest text-sm">
+            Start
+        </button>
+        <div id="json-output" class="mt-10 w-full max-w-4xl mx-auto hidden">
+            <pre class="bg-gray-900/80 border border-gray-700 rounded-lg p-6 text-left text-sm text-gray-300 overflow-x-auto max-h-[70vh] overflow-y-auto"><code id="json-content"></code></pre>
+        </div>
+        <p id="json-loading" class="mt-6 text-gray-500 text-sm hidden">조회 중...</p>
+        <p id="json-error" class="mt-6 text-amber-400 text-sm hidden"></p>
+        <a href="/" class="mt-12 border border-white px-10 py-4 hover:bg-white hover:text-black transition-all duration-300 tracking-widest text-sm">
+            메인으로
+        </a>
+    </section>
+
+    <script>
+        document.getElementById('btn-fetch').addEventListener('click', async function() {
+            const output = document.getElementById('json-output');
+            const content = document.getElementById('json-content');
+            const loading = document.getElementById('json-loading');
+            const errEl = document.getElementById('json-error');
+            output.classList.add('hidden');
+            errEl.classList.add('hidden');
+            loading.classList.remove('hidden');
+            try {
+                const res = await fetch('/api/bizinfo');
+                const data = await res.json();
+                content.textContent = JSON.stringify(data, null, 2);
+                output.classList.remove('hidden');
+            } catch (e) {
+                errEl.textContent = '조회 실패: ' + e.message;
+                errEl.classList.remove('hidden');
+            }
+            loading.classList.add('hidden');
+        });
+    </script>
+</body>
+</html>

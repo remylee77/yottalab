@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YOTTA LAB | Global AI Tech Consulting</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Playfair+Display:ital@0;1&display=swap" rel="stylesheet">
+    <style>
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Inter', sans-serif; background-color: #0a0a0a; color: #ffffff; }
+        .font-serif { font-family: 'Playfair Display', serif; }
+        .gradient-text {
+            background: linear-gradient(to right, #ffffff, #4f46e5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #4f46e5 !important;
+        }
+        .expertise-more {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-out;
+        }
+        .expertise-more.expanded {
+            max-height: 300px;
+            transition: max-height 0.5s ease-in;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <nav class="flex justify-between items-center px-8 py-6 fixed w-full z-50 bg-black/50 backdrop-blur-md">
+        <a href="/" class="text-2xl font-bold tracking-tighter hover:opacity-80 transition-opacity">
+            YOTTA <span class="font-light text-indigo-500">LAB</span>
+        </a>        
+        <div class="hidden md:flex space-x-10 text-sm uppercase tracking-widest text-gray-400 items-center">
+            <a href="#services" class="hover:text-white transition">Service</a>
+            <a href="#insight" class="hover:text-white transition">Insight</a>
+            <a href="#price" class="hover:text-white transition">Price</a>
+            <a href="#contact" class="hover:text-white transition">Contact</a>
+            {% if username %}
+                <div class="flex items-center space-x-6 border-l border-gray-800 pl-10">
+                    <span class="text-[10px] text-indigo-400 lowercase tracking-normal">
+                        signed in as <strong class="text-white ml-1">{{ username }}</strong>
+                    </span>
+                    <a href="/dashboard" class="text-white font-bold hover:text-indigo-400 transition">Dashboard</a>
+                    <a href="/logout" class="text-xs bg-white text-black px-4 py-1.5 hover:bg-indigo-500 hover:text-white transition">Logout</a>
+                </div>
+            {% else %}
+                <a href="/login" class="px-6 py-2 border border-gray-700 text-white hover:bg-white hover:text-black transition">Login</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <section class="h-screen flex flex-col justify-center items-center px-6 text-center">
+        <h2 class="text-sm uppercase tracking-[0.5em] text-indigo-500 mb-4">Global AI Consulting Group</h2>
+        <h1 class="text-5xl md:text-8xl font-serif mb-8 gradient-text leading-tight">
+            Scaling Intelligence <br> to the Yotta Horizon.
+        </h1>
+        <p class="max-w-2xl text-gray-400 text-lg md:text-xl font-light leading-relaxed">
+            방대한 데이터를 넘어, 무한한 지능의 시대를 설계합니다. <br>
+            Yotta Lab은 글로벌 기업의 AI 전환을 선도하는 기술 파트너입니다.
+        </p>
+        <p class="mt-10 text-gray-300 text-lg md:text-xl font-light tracking-wide italic">
+            당신의 아이디어, 함께 현실로 만듭니다.
+        </p>
+        <div class="mt-12 flex space-x-4">
+            <a href="/demo-concierge" class="border border-white px-10 py-4 hover:bg-white hover:text-black transition-all duration-300 tracking-widest text-sm">
+                Demo Concierge
+            </a>
+            {% if username %}
+            <a href="/dashboard" class="bg-indigo-600 px-10 py-4 hover:bg-indigo-700 transition-all duration-300 tracking-widest text-sm">
+                MY DASHBOARD
+            </a>
+            {% endif %}
+        </div>
+    </section>
+
+    <section id="services" class="py-32 px-8 bg-white text-black">
+        <div class="max-w-6xl mx-auto">
+            <h2 class="text-center font-serif text-4xl mb-20 italic">Our Expertise</h2>
+            <div class="grid md:grid-cols-3 gap-x-16 gap-y-20">
+                <div class="border-b border-gray-100 pb-4">
+                    <span class="text-4xl font-serif text-indigo-600">01</span>
+                    <h3 class="text-xl font-bold mt-4 mb-2">정책자금</h3>
+                    <p class="text-gray-600 font-light leading-relaxed">기업의 성장 단계별 최적화된 저금리 정책자금을 분석하여 효율적인 자본 조달 전략을 수립합니다.</p>
+                    <div class="expertise-more mt-2" id="more-01">
+                        <p class="text-gray-500 text-sm font-light leading-relaxed pt-2">정책자금 상담, 사업자 유형별 맞춤 분석, 신청 절차 지원, 선정 전략 수립 등 단계별 전문 컨설팅을 제공합니다.</p>
+                    </div>
+                    <button type="button" class="expertise-toggle mt-3 text-indigo-600 text-sm font-medium hover:text-indigo-700 hover:underline focus:outline-none" data-target="more-01">더보기</button>
+                </div>
+                <div class="border-b border-gray-100 pb-4">
+                    <span class="text-4xl font-serif text-indigo-600">02</span>
+                    <h3 class="text-xl font-bold mt-4 mb-2">정부지원사업</h3>
+                    <p class="text-gray-600 font-light leading-relaxed">혁신 분야 대규모 지원금을 매칭하고, 선정 가능성을 극대화하는 기획 및 제안 컨설팅을 제공합니다.</p>
+                    <div class="expertise-more mt-2" id="more-02">
+                        <p class="text-gray-500 text-sm font-light leading-relaxed pt-2">중소벤처기업부, 산업통상자원부, 과기부 등 부처별 사업 매칭, 기획서 작성, 제안서 피드백, 선정 후 사업관리 지원까지 원스톱 솔루션을 제공합니다.</p>
+                    </div>
+                    <button type="button" class="expertise-toggle mt-3 text-indigo-600 text-sm font-medium hover:text-indigo-700 hover:underline focus:outline-none" data-target="more-02">더보기</button>
+                </div>
+                <div class="border-b border-gray-100 pb-4">
+                    <span class="text-4xl font-serif text-indigo-600">03</span>
+                    <h3 class="text-xl font-bold mt-4 mb-2">R&D 컨설팅</h3>
+                    <p class="text-gray-600 font-light leading-relaxed">기술 고도화를 위한 연구개발 과제 기획부터 사업계획서 작성, 사후 관리까지 전 과정을 지원합니다.</p>
+                    <div class="expertise-more mt-2" id="more-03">
+                        <p class="text-gray-500 text-sm font-light leading-relaxed pt-2">중소기업 기술개발사업, 산학연 R&D, 지자체 과제 등 다양한 R&D 사업 기획·제안·선정·사후관리 전 단계를 파트너와 함께 수행합니다.</p>
+                    </div>
+                    <button type="button" class="expertise-toggle mt-3 text-indigo-600 text-sm font-medium hover:text-indigo-700 hover:underline focus:outline-none" data-target="more-03">더보기</button>
+                </div>
+                <div class="border-b border-gray-100 pb-4">
+                    <span class="text-4xl font-serif text-indigo-600">04</span>
+                    <h3 class="text-xl font-bold mt-4 mb-2">판로개척</h3>
+                    <p class="text-gray-600 font-light leading-relaxed">B2B/B2G 시장 진입을 위한 네트워크 연결 및 유통망 확보 등 실질적인 매출 증대 솔루션을 제공합니다.</p>
+                    <div class="expertise-more mt-2" id="more-04">
+                        <p class="text-gray-500 text-sm font-light leading-relaxed pt-2">공공·기업 수요 매칭, 유통·판매 채널 연결, 시장 진입 전략 수립, 제품·서비스 포지셔닝 등 실제 매출로 이어지는 실무 지원을 진행합니다.</p>
+                    </div>
+                    <button type="button" class="expertise-toggle mt-3 text-indigo-600 text-sm font-medium hover:text-indigo-700 hover:underline focus:outline-none" data-target="more-04">더보기</button>
+                </div>
+                <div class="border-b border-gray-100 pb-4">
+                    <span class="text-4xl font-serif text-indigo-600">05</span>
+                    <h3 class="text-xl font-bold mt-4 mb-2">역량강화</h3>
+                    <p class="text-gray-600 font-light leading-relaxed">기업 내부 시스템 진단과 전문 인력 교육을 통해 기술적, 경영적 자생력을 갖추도록 지원합니다.</p>
+                    <div class="expertise-more mt-2" id="more-05">
+                        <p class="text-gray-500 text-sm font-light leading-relaxed pt-2">경영진·직원 역량 진단, 맞춤형 교육 프로그램 설계, AI·디지털 전환 교육, 조직 문화 혁신 컨설팅으로 지속 성장 기반을 마련합니다.</p>
+                    </div>
+                    <button type="button" class="expertise-toggle mt-3 text-indigo-600 text-sm font-medium hover:text-indigo-700 hover:underline focus:outline-none" data-target="more-05">더보기</button>
+                </div>
+                <div class="border-b border-gray-100 pb-4">
+                    <span class="text-4xl font-serif text-indigo-600">06</span>
+                    <h3 class="text-xl font-bold mt-4 mb-2">해외진출</h3>
+                    <p class="text-gray-600 font-light leading-relaxed">글로벌 시장 분석 및 현지화 전략을 통해 기술 기반 기업의 해외 시장 조기 안착을 선도합니다.</p>
+                    <div class="expertise-more mt-2" id="more-06">
+                        <p class="text-gray-500 text-sm font-light leading-relaxed pt-2">베트남, 일본, 동남아 등 진출 시장 선정, 현지 파트너 매칭, 해외 전시회·네트워킹 지원, 현지화 및 규제 대응까지 해외 진출 전 과정을 함께합니다.</p>
+                    </div>
+                    <button type="button" class="expertise-toggle mt-3 text-indigo-600 text-sm font-medium hover:text-indigo-700 hover:underline focus:outline-none" data-target="more-06">더보기</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="insight" class="py-32 px-8 bg-gray-50 text-black">
+        <div class="max-w-4xl mx-auto">
+            <h2 class="text-center font-serif text-4xl mb-16 italic">YOTTA Insight</h2>
+            <div class="text-center text-lg text-gray-700 font-light leading-relaxed px-4 md:px-12">
+                YOTTA Insight는 AI 데이터 트렌드, 컨설팅 인사이트, 시장 및 프로젝트 통찰을 제공합니다.<br>
+                최신 연구와 실제 사례를 바탕으로 비즈니스 전략과 방향성을 제시합니다.<br>
+                <br>
+                - 정책 및 기술 동향 리포트<br>
+                - 성공 기업 인터뷰와 사례 분석<br>
+                - 최신 AI/IT 트렌드 소개<br>
+                - 혁신 성과와 글로벌 인사이트 큐레이션<br>
+            </div>
+        </div>
+    </section>
+
+    <section id="price" class="py-32 px-8 bg-white text-black">
+        <div class="max-w-5xl mx-auto">
+            <h2 class="text-center font-serif text-4xl mb-16 italic">Price</h2>
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="border border-gray-200 rounded-2xl p-8 text-center hover:border-indigo-300 transition-colors">
+                    <h3 class="text-xl font-bold text-indigo-600 mb-6">무료</h3>
+                    <p class="text-gray-600 text-sm font-light">기본 컨설팅 및 상담</p>
+                </div>
+                <div class="border border-indigo-200 rounded-2xl p-8 text-center bg-indigo-50/30 hover:border-indigo-400 transition-colors">
+                    <h3 class="text-xl font-bold text-indigo-600 mb-6">월 100만원</h3>
+                    <ul class="text-gray-600 text-sm font-light text-left space-y-2">
+                        <li>• 계약기간 1년</li>
+                        <li>• 주1회 AI 컨시어지</li>
+                        <li>• 월1회 전문가 컨설팅</li>
+                    </ul>
+                </div>
+                <div class="border border-gray-200 rounded-2xl p-8 text-center hover:border-indigo-300 transition-colors">
+                    <h3 class="text-xl font-bold text-indigo-600 mb-6">월 300만원</h3>
+                    <ul class="text-gray-600 text-sm font-light text-left space-y-2">
+                        <li>• 계약기간 1년</li>
+                        <li>• 주1회 AI 컨시어지</li>
+                        <li>• 월1회 전문가 컨설팅</li>
+                        <li>• 성과 없을 시, 100% 환불 보장</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="contact" class="py-32 px-8 bg-[#0a0a0a]">
+        <div class="max-w-4xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-sm uppercase tracking-[0.5em] text-indigo-500 mb-4">Get In Touch</h2>
+                <h1 class="text-4xl md:text-5xl font-serif gradient-text">Contact Our Experts</h1>
+                {% if contact_sent | default(false) %}<p class="mt-4 text-green-400 text-sm">메시지가 전송되었습니다. 빠른 시일 내에 연락드리겠습니다.</p>{% endif %}
+                {% if contact_error | default(false) %}<p class="mt-4 text-amber-400 text-sm">전송에 실패했습니다. SMTP 설정을 확인해주세요.{% if contact_error_msg %} ({{ contact_error_msg }}){% endif %}</p>{% endif %}
+            </div>
+            <form action="/contact" method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+                <!-- honeypot: 사람은 안 보이게, 봇이 채우면 차단 -->
+                <div class="absolute -left-[9999px] w-0 overflow-hidden" aria-hidden="true">
+                    <label for="website">웹사이트</label>
+                    <input type="text" name="website" id="website" tabindex="-1" autocomplete="off">
+                </div>
+                <div class="flex flex-col space-y-2">
+                    <label class="text-[10px] uppercase tracking-widest text-gray-500">기업명</label>
+                    <input type="text" name="company" required class="bg-transparent border-b border-gray-800 py-2 text-white transition-colors focus:border-indigo-500">
+                </div>
+                <div class="flex flex-col space-y-2">
+                    <label class="text-[10px] uppercase tracking-widest text-gray-500">담당자 성함</label>
+                    <input type="text" name="name" required class="bg-transparent border-b border-gray-800 py-2 text-white transition-colors focus:border-indigo-500">
+                </div>
+                <div class="flex flex-col space-y-2">
+                    <label class="text-[10px] uppercase tracking-widest text-gray-500">이메일 주소</label>
+                    <input type="email" name="email" required class="bg-transparent border-b border-gray-800 py-2 text-white transition-colors focus:border-indigo-500">
+                </div>
+                <div class="flex flex-col space-y-2">
+                    <label class="text-[10px] uppercase tracking-widest text-gray-500">연락처</label>
+                    <input type="tel" name="phone" required class="bg-transparent border-b border-gray-800 py-2 text-white transition-colors focus:border-indigo-500">
+                </div>
+                <div class="flex flex-col space-y-2 md:col-span-2">
+                    <label class="text-[10px] uppercase tracking-widest text-gray-500">문의 내용</label>
+                    <textarea name="message" rows="4" required class="bg-transparent border-b border-gray-800 py-2 text-white resize-none transition-colors focus:border-indigo-500"></textarea>
+                </div>
+                <div class="md:col-span-2 space-y-6 pt-4 border-t border-gray-800/50">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500">아래 항목은 선택사항입니다.</p>
+                    <div class="space-y-4">
+                        <div>
+                            <p class="text-xs text-gray-500 mb-2">1. 회사 소재지</p>
+                            <div class="flex flex-wrap gap-x-6 gap-y-2">
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="location" value="서울" class="text-indigo-500"> <span class="text-sm">서울</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="location" value="경기" class="text-indigo-500"> <span class="text-sm">경기</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="location" value="인천" class="text-indigo-500"> <span class="text-sm">인천</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="location" value="그 외 지역" class="text-indigo-500"> <span class="text-sm">그 외 지역</span></label>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 mb-2">2. 연매출</p>
+                            <div class="flex flex-wrap gap-x-6 gap-y-2">
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="revenue" value="1억원미만" class="text-indigo-500"> <span class="text-sm">1억원미만</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="revenue" value="1억원이상~3억원미만" class="text-indigo-500"> <span class="text-sm">1억원이상~3억원미만</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="revenue" value="3억원이상~5억원미만" class="text-indigo-500"> <span class="text-sm">3억원이상~5억원미만</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="revenue" value="5억원이상" class="text-indigo-500"> <span class="text-sm">5억원이상</span></label>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 mb-2">3. 임직원수</p>
+                            <div class="flex flex-wrap gap-x-6 gap-y-2">
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="employees" value="5명미만" class="text-indigo-500"> <span class="text-sm">5명미만</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="employees" value="5명이상" class="text-indigo-500"> <span class="text-sm">5명이상</span></label>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 mb-2">4. 업종</p>
+                            <div class="flex flex-wrap gap-x-6 gap-y-2">
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="industry" value="정보통신업" class="text-indigo-500"> <span class="text-sm">정보통신업</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="industry" value="도소매업" class="text-indigo-500"> <span class="text-sm">도소매업</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="industry" value="그 외" class="text-indigo-500"> <span class="text-sm">그 외</span></label>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 mb-2">5. 업력</p>
+                            <div class="flex flex-wrap gap-x-6 gap-y-2">
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="years" value="예비창업자" class="text-indigo-500"> <span class="text-sm">예비창업자</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="years" value="1년미만" class="text-indigo-500"> <span class="text-sm">1년미만</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="years" value="3년미만" class="text-indigo-500"> <span class="text-sm">3년미만</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="years" value="7년미만" class="text-indigo-500"> <span class="text-sm">7년미만</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="years" value="7년이상" class="text-indigo-500"> <span class="text-sm">7년이상</span></label>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 mb-2">6. 관심분야</p>
+                            <div class="flex flex-wrap gap-x-6 gap-y-2">
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="interest" value="정책자금" class="text-indigo-500"> <span class="text-sm">정책자금</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="interest" value="정부지원사업" class="text-indigo-500"> <span class="text-sm">정부지원사업</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="interest" value="R&D" class="text-indigo-500"> <span class="text-sm">R&D</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="interest" value="마케팅" class="text-indigo-500"> <span class="text-sm">마케팅</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="interest" value="판로개척" class="text-indigo-500"> <span class="text-sm">판로개척</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-500"><input type="radio" name="interest" value="기타" class="text-indigo-500"> <span class="text-sm">기타</span></label>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 mb-2">7. 회사 홈페이지 주소</p>
+                            <input type="url" name="company_url" placeholder="https://example.com" class="w-full bg-transparent border-b border-gray-800 py-2 text-white text-sm placeholder-gray-600 focus:border-indigo-500 transition-colors">
+                        </div>
+                    </div>
+                </div>
+                <div class="md:col-span-2 text-center mt-8">
+                    <button type="submit" class="px-12 py-4 border border-white text-white text-xs tracking-[0.3em] uppercase hover:bg-white hover:text-black transition-all duration-300">
+                        Send Message
+                    </button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <footer class="py-20 px-8 border-t border-gray-900 bg-[#0a0a0a]">
+        <div class="max-w-5xl mx-auto text-center">
+            <div id="footer-offices" class="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16 text-gray-400 font-light leading-relaxed">
+            </div>
+            <p class="text-gray-600 text-[9px] md:text-[10px] tracking-[0.3em] uppercase border-t border-gray-900/50 pt-10">
+                &copy; 2026 YOTTA LAB CO., LTD. ALL RIGHTS RESERVED.
+            </p>
+        </div>
+    </footer>    
+
+    <script>
+        document.querySelectorAll('.expertise-toggle').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const target = document.getElementById(this.dataset.target);
+                const isExpanded = target.classList.toggle('expanded');
+                this.textContent = isExpanded ? '접기' : '더보기';
+            });
+        });
+        const offices = [
+        {
+            nation: "Korea",
+            address: "G valley startup welfare center, 120, <br> Gasan digital 1-ro, Geumcheon-gu, Seoul, 08590, <br> Republic of Korea"
+        },
+        {
+            nation: "Vietnam",
+            address: "NIC Building, Alley 7 Ton That Thuyet Street, <br> Dich Vong Hau Ward, Cau Giay District, <br> Ha Noi, Vietnam"
+        },
+        { nation: "Japan", address: "Coming Soon" },
+        { nation: "China", address: "Coming Soon" },
+        { nation: "Philippines", address: "Coming Soon" },
+        { nation: "Thailand", address: "Coming Soon" },
+        ];
+        const footerGrid = document.getElementById('footer-offices');
+        footerGrid.innerHTML = offices.map(office => `
+            <div>
+                <h3 class="text-white font-bold tracking-widest text-[10px] uppercase mb-4 text-indigo-500">
+                    YOTTALAB ${office.nation}
+                </h3>
+                <p class="text-xs md:text-sm">
+                    ${office.address}
+                </p>
+            </div>
+        `).join('');
+    </script>
+</body>
+</html>
