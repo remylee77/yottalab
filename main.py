@@ -30,6 +30,13 @@ import uvicorn
 DB_PATH = BASE_DIR / "database.db"
 app = FastAPI()
 
+
+@app.get("/health")
+async def health():
+    """배포 상태 확인용"""
+    return {"status": "ok"}
+
+
 _HASH_ITERATIONS = 100000
 
 
