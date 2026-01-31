@@ -23,15 +23,13 @@ from typing import Optional
 from urllib.parse import quote
 
 from fastapi import FastAPI, Request, Form, Response
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 import uvicorn
 
-# Render.com: 프로젝트 폴더는 읽기전용 → /tmp 사용
-if os.environ.get("RENDER"):
-    DB_PATH = Path("/tmp/database.db")
-else:
-    DB_PATH = BASE_DIR / "database.db"
+# Render.com: 프로젝트 폴더는 읽기전용 → /tmp 사용 (RENDER 또는 RENDER_EXTERNAL_URL 있으면 감지)
+_on_render = bool(os.environ.get("RENDER") or os.environ.get("RENDER_EXTERNAL_URL"))
+DB_PATH = Path("/tmp/database.db") if _on_render else BASE_DIR / "database.db"
 app = FastAPI()
 
 
@@ -39,6 +37,21 @@ app = FastAPI()
 async def health():
     """배포 상태 확인용"""
     return {"status": "ok"}
+
+
+FILES_DIR = BASE_DIR / "files"
+
+
+@app.get("/download/{filename}")
+async def download_file(filename: str):
+    """Member/Partner/Backer/Customer 상세정보 PDF 다운로드"""
+    allowed = ("member_info.pdf", "partner_info.pdf", "backer_info.pdf", "customer_info.pdf")
+    if filename not in allowed:
+        return RedirectResponse("/dashboard", status_code=302)
+    path = FILES_DIR / filename
+    if not path.exists():
+        return RedirectResponse("/dashboard?tab=status", status_code=302)
+    return FileResponse(path, filename=filename, media_type="application/pdf")
 
 
 _HASH_ITERATIONS = 100000
@@ -83,9 +96,26 @@ def _format_note_date(iso_str: str) -> str:
         return iso_str[:10] if iso_str else ""
 
 
+def _infer_audience_type(audience_str, backer_ids, customer_ids):
+    """comma-separated audience → selected, selected_backers, selected_customers"""
+    if not audience_str or audience_str in ("all", "members", "partners", "backers", "customers"):
+        return audience_str or "all"
+    aids = [x.strip() for x in audience_str.split(",") if x.strip()]
+    if not aids:
+        return "all"
+    bk = set(backer_ids)
+    cu = set(customer_ids)
+    if all(a in bk for a in aids):
+        return "selected_backers"
+    if all(a in cu for a in aids):
+        return "selected_customers"
+    return "selected"
+
+
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 templates.env.globals["enumerate"] = enumerate
 templates.env.globals["format_note_date"] = _format_note_date
+templates.env.globals["infer_audience_type"] = _infer_audience_type
 
 
 def _conn():
@@ -282,8 +312,12 @@ def get_todos_for_user(current_user):
         return all_todos
     member_ids = {m["id"] for m in load_members_from_db()}
     partner_ids = {p["id"] for p in load_partners_from_db()}
+    backer_ids = {b["id"] for b in load_backers_from_db()}
+    customer_ids = {c["id"] for c in load_customers_from_db()}
     is_member = current_user in member_ids
     is_partner = current_user in partner_ids
+    is_backer = current_user in backer_ids
+    is_customer = current_user in customer_ids
     out = []
     for t in all_todos:
         aud = t.get("audience") or "all"
@@ -292,6 +326,10 @@ def get_todos_for_user(current_user):
         elif aud == "members" and is_member:
             out.append(t)
         elif aud == "partners" and is_partner:
+            out.append(t)
+        elif aud == "backers" and is_backer:
+            out.append(t)
+        elif aud == "customers" and is_customer:
             out.append(t)
         elif current_user in [x.strip() for x in aud.split(",") if x.strip()]:
             out.append(t)
@@ -319,19 +357,22 @@ def _merge_all_contrib():
     return {**MEMBER_DATA, **PARTNER_DATA, **BACKER_DATA, **CUSTOMER_DATA}
 
 
-def save_notes_to_db(notes):
+def save_notes_to_db(notes, note_dates=None):
+    """notes: {user_id: note_text}, note_dates: {user_id: "YYYY-MM-DD HH:MM:SS"} (작성일, 변경 시에만 갱신)"""
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    dates = note_dates or {}
     with _conn() as c:
         c.execute("DELETE FROM member_notes")
         try:
-            for m, txt in notes.items():
+            for uid, txt in notes.items():
+                use_date = dates.get(uid) or now
                 c.execute(
                     "INSERT INTO member_notes (member, note, note_updated_at) VALUES (?,?,?)",
-                    (m, txt or "", now),
+                    (uid, txt or "", use_date),
                 )
         except sqlite3.OperationalError:
-            for m, txt in notes.items():
-                c.execute("INSERT INTO member_notes (member, note) VALUES (?,?)", (m, txt or ""))
+            for uid, txt in notes.items():
+                c.execute("INSERT INTO member_notes (member, note) VALUES (?,?)", (uid, txt or ""))
         c.commit()
 
 
@@ -855,8 +896,13 @@ def _migrate_hash_to_plain():
 
 @app.on_event("startup")
 def on_startup():
-    init_db()
-    _migrate_hash_to_plain()
+    try:
+        init_db()
+        _migrate_hash_to_plain()
+    except Exception as e:
+        import sys
+        print(f"[STARTUP ERROR] {e}", file=sys.stderr)
+        raise
     member_ids = {m["id"] for m in load_members_from_db()}
     partner_ids = {p["id"] for p in load_partners_from_db()}
     backer_ids = {b["id"] for b in load_backers_from_db()}
@@ -866,10 +912,13 @@ def on_startup():
         MEMBER_NOTES[mid] = ""
     for pid in partner_ids:
         PARTNER_DATA[pid] = {y: [False] * 12 for y in _YEARS_TUPLE}
+        MEMBER_NOTES[pid] = ""
     for bid in backer_ids:
         BACKER_DATA[bid] = {y: [False] * 12 for y in _YEARS_TUPLE}
+        MEMBER_NOTES[bid] = ""
     for cid in customer_ids:
         CUSTOMER_DATA[cid] = {y: [False] * 12 for y in _YEARS_TUPLE}
+        MEMBER_NOTES[cid] = ""
     loaded = load_contrib_from_db()
     for uid, ys in loaded.items():
         target = None
@@ -886,11 +935,15 @@ def on_startup():
                 if y in target[uid] and len(months) == 12:
                     target[uid][y] = months[:]
     notes_dict, note_dates = load_notes_from_db()
-    for m, txt in notes_dict.items():
-        if m in MEMBER_NOTES:
-            MEMBER_NOTES[m] = txt
-            if note_dates.get(m):
-                MEMBER_NOTE_DATES[m] = note_dates[m]
+    all_user_ids = member_ids | partner_ids | backer_ids | customer_ids
+    for uid in all_user_ids:
+        if uid not in MEMBER_NOTES:
+            MEMBER_NOTES[uid] = ""
+    for uid, txt in notes_dict.items():
+        if uid in MEMBER_NOTES:
+            MEMBER_NOTES[uid] = txt
+            if note_dates.get(uid):
+                MEMBER_NOTE_DATES[uid] = note_dates[uid]
 
 
 CONTACT_EMAIL = "remylee@naver.com"
@@ -1170,6 +1223,8 @@ async def dashboard(request: Request, year: str = "2026", tab: str = None, contr
             "partners": partners_with_login,
             "backers": backers_with_login,
             "customers": customers_with_login,
+            "backer_ids": [b["id"] for b in load_backers_from_db()],
+            "customer_ids": [c["id"] for c in load_customers_from_db()],
             "admin_password": load_admin_password_hash() or "",
             "members_json": json.dumps(members_with_badges),
             "partners_json": json.dumps(load_partners_from_db()),
@@ -1259,12 +1314,12 @@ async def admin_edit_contrib(request: Request):
             elif key.startswith("note_"):
                 uid = key[5:]
                 if uid and uid in MEMBER_NOTES:
-                    MEMBER_NOTES[uid] = (form.get(key) or "").strip()
+                    new_txt = (form.get(key) or "").strip()
+                    if new_txt != MEMBER_NOTES.get(uid, ""):
+                        MEMBER_NOTE_DATES[uid] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    MEMBER_NOTES[uid] = new_txt
         MEMBER_DATA = new_member
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        for m in MEMBER_NOTES:
-            MEMBER_NOTE_DATES[m] = now
-        save_notes_to_db(MEMBER_NOTES)
+        save_notes_to_db(MEMBER_NOTES, MEMBER_NOTE_DATES)
     elif contrib_type == "partner":
         new_partner = {p: {y: [False]*12 for y in sd.keys()} for p, sd in PARTNER_DATA.items()}
         for key in form:
@@ -1277,6 +1332,15 @@ async def admin_edit_contrib(request: Request):
                 except Exception:
                     pass
         PARTNER_DATA = new_partner
+        for key in form:
+            if key.startswith("note_"):
+                uid = key[5:]
+                if uid and uid in MEMBER_NOTES:
+                    new_txt = (form.get(key) or "").strip()
+                    if new_txt != MEMBER_NOTES.get(uid, ""):
+                        MEMBER_NOTE_DATES[uid] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    MEMBER_NOTES[uid] = new_txt
+        save_notes_to_db(MEMBER_NOTES, MEMBER_NOTE_DATES)
     elif contrib_type == "backer":
         new_backer = {b: {y: [False]*12 for y in sd.keys()} for b, sd in BACKER_DATA.items()}
         for key in form:
@@ -1289,6 +1353,15 @@ async def admin_edit_contrib(request: Request):
                 except Exception:
                     pass
         BACKER_DATA = new_backer
+        for key in form:
+            if key.startswith("note_"):
+                uid = key[5:]
+                if uid and uid in MEMBER_NOTES:
+                    new_txt = (form.get(key) or "").strip()
+                    if new_txt != MEMBER_NOTES.get(uid, ""):
+                        MEMBER_NOTE_DATES[uid] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    MEMBER_NOTES[uid] = new_txt
+        save_notes_to_db(MEMBER_NOTES, MEMBER_NOTE_DATES)
     elif contrib_type == "customer":
         new_customer = {c: {y: [False]*12 for y in sd.keys()} for c, sd in CUSTOMER_DATA.items()}
         for key in form:
@@ -1301,6 +1374,15 @@ async def admin_edit_contrib(request: Request):
                 except Exception:
                     pass
         CUSTOMER_DATA = new_customer
+        for key in form:
+            if key.startswith("note_"):
+                uid = key[5:]
+                if uid and uid in MEMBER_NOTES:
+                    new_txt = (form.get(key) or "").strip()
+                    if new_txt != MEMBER_NOTES.get(uid, ""):
+                        MEMBER_NOTE_DATES[uid] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    MEMBER_NOTES[uid] = new_txt
+        save_notes_to_db(MEMBER_NOTES, MEMBER_NOTE_DATES)
     save_contrib_to_db(_merge_all_contrib())
     redirect_tab = form.get("contrib_subtab") or "member"
     return RedirectResponse(f"/dashboard?tab=contribution&contrib={redirect_tab}", status_code=303)
@@ -1326,14 +1408,32 @@ async def admin_todo_add(request: Request):
     else:
         sort_order = max([t.get("sort_order", 0) for t in all_todos], default=-1) + 1
     at = form.get("audience_type") or "all"
+    backer_ids_set = {b["id"] for b in load_backers_from_db()}
+    customer_ids_set = {c["id"] for c in load_customers_from_db()}
     if at == "selected":
         ids = []
         for k in form:
             if k.startswith("audience_") and k != "audience_type" and form.get(k):
                 ids.append(k.replace("audience_", ""))
         audience = ",".join(ids) if ids else "all"
+    elif at == "selected_backers":
+        ids = []
+        for k in form:
+            if k.startswith("audience_") and k != "audience_type" and form.get(k):
+                uid = k.replace("audience_", "")
+                if uid in backer_ids_set:
+                    ids.append(uid)
+        audience = ",".join(ids) if ids else "all"
+    elif at == "selected_customers":
+        ids = []
+        for k in form:
+            if k.startswith("audience_") and k != "audience_type" and form.get(k):
+                uid = k.replace("audience_", "")
+                if uid in customer_ids_set:
+                    ids.append(uid)
+        audience = ",".join(ids) if ids else "all"
     else:
-        audience = at  # all, members, partners
+        audience = at  # all, members, partners, backers, customers
     todo_detail = (form.get("todo_detail") or "").strip()
     todo_add_to_db(next_id, todo_title, False, audience, sort_order, todo_detail)
     return RedirectResponse("/dashboard?tab=todo", status_code=303)
@@ -1369,14 +1469,32 @@ async def admin_todo_edit(request: Request):
         existing = find_todo(tid)
         todo_title = (existing.get("title") or "").strip() if existing else ""
     at = form.get("audience_type") or "all"
+    backer_ids_set = {b["id"] for b in load_backers_from_db()}
+    customer_ids_set = {c["id"] for c in load_customers_from_db()}
     if at == "selected":
         ids = []
         for k in form:
             if k.startswith("audience_") and k != "audience_type" and form.get(k):
                 ids.append(k.replace("audience_", ""))
         audience = ",".join(ids) if ids else "all"
+    elif at == "selected_backers":
+        ids = []
+        for k in form:
+            if k.startswith("audience_") and k != "audience_type" and form.get(k):
+                uid = k.replace("audience_", "")
+                if uid in backer_ids_set:
+                    ids.append(uid)
+        audience = ",".join(ids) if ids else "all"
+    elif at == "selected_customers":
+        ids = []
+        for k in form:
+            if k.startswith("audience_") and k != "audience_type" and form.get(k):
+                uid = k.replace("audience_", "")
+                if uid in customer_ids_set:
+                    ids.append(uid)
+        audience = ",".join(ids) if ids else "all"
     else:
-        audience = at  # all, members, partners
+        audience = at  # all, members, partners, backers, customers
     sort_order = None
     so_val = form.get("todo_sort_order")
     if so_val is not None and so_val != "":
@@ -1443,7 +1561,7 @@ async def admin_member_add(request: Request):
         MEMBER_DATA[mid] = {y: [False] * 12 for y in _YEARS_TUPLE}
         MEMBER_NOTES[mid] = ""
         save_contrib_to_db(_merge_all_contrib())
-        save_notes_to_db(MEMBER_NOTES)
+        save_notes_to_db(MEMBER_NOTES, MEMBER_NOTE_DATES)
     return RedirectResponse("/dashboard?tab=status", status_code=303)
 
 
@@ -1472,11 +1590,12 @@ async def admin_member_delete(request: Request, member_id: str = Form(...)):
         return RedirectResponse("/dashboard", status_code=302)
     mid = member_id.strip()
     member_delete_from_db(mid)
-    global MEMBER_DATA, MEMBER_NOTES
+    global MEMBER_DATA, MEMBER_NOTES, MEMBER_NOTE_DATES
     MEMBER_DATA.pop(mid, None)
     MEMBER_NOTES.pop(mid, None)
+    MEMBER_NOTE_DATES.pop(mid, None)
     save_contrib_to_db(_merge_all_contrib())
-    save_notes_to_db(MEMBER_NOTES)
+    save_notes_to_db(MEMBER_NOTES, MEMBER_NOTE_DATES)
     return RedirectResponse("/dashboard?tab=status", status_code=303)
 
 
@@ -1501,10 +1620,12 @@ async def admin_partner_add(request: Request):
         partner_add_to_db(pid, partner_password, sort_order, partner_equity)
     except sqlite3.IntegrityError:
         pass
-    global PARTNER_DATA
+    global PARTNER_DATA, MEMBER_NOTES
     if pid not in PARTNER_DATA:
         PARTNER_DATA[pid] = {y: [False] * 12 for y in _YEARS_TUPLE}
+        MEMBER_NOTES[pid] = ""
         save_contrib_to_db(_merge_all_contrib())
+        save_notes_to_db(MEMBER_NOTES, MEMBER_NOTE_DATES)
     return RedirectResponse("/dashboard?tab=status", status_code=303)
 
 
@@ -1533,9 +1654,12 @@ async def admin_partner_delete(request: Request, partner_id: str = Form(...)):
         return RedirectResponse("/dashboard", status_code=302)
     pid = partner_id.strip()
     partner_delete_from_db(pid)
-    global PARTNER_DATA
+    global PARTNER_DATA, MEMBER_NOTES, MEMBER_NOTE_DATES
     PARTNER_DATA.pop(pid, None)
+    MEMBER_NOTES.pop(pid, None)
+    MEMBER_NOTE_DATES.pop(pid, None)
     save_contrib_to_db(_merge_all_contrib())
+    save_notes_to_db(MEMBER_NOTES, MEMBER_NOTE_DATES)
     return RedirectResponse("/dashboard?tab=status", status_code=303)
 
 
@@ -1560,10 +1684,12 @@ async def admin_backer_add(request: Request):
         backer_add_to_db(bid, backer_password, sort_order, backer_equity)
     except sqlite3.IntegrityError:
         pass
-    global BACKER_DATA
+    global BACKER_DATA, MEMBER_NOTES
     if bid not in BACKER_DATA:
         BACKER_DATA[bid] = {y: [False] * 12 for y in _YEARS_TUPLE}
+        MEMBER_NOTES[bid] = ""
         save_contrib_to_db(_merge_all_contrib())
+        save_notes_to_db(MEMBER_NOTES, MEMBER_NOTE_DATES)
     return RedirectResponse("/dashboard?tab=status", status_code=303)
 
 
@@ -1592,9 +1718,12 @@ async def admin_backer_delete(request: Request, backer_id: str = Form(...)):
         return RedirectResponse("/dashboard", status_code=302)
     bid = backer_id.strip()
     backer_delete_from_db(bid)
-    global BACKER_DATA
+    global BACKER_DATA, MEMBER_NOTES, MEMBER_NOTE_DATES
     BACKER_DATA.pop(bid, None)
+    MEMBER_NOTES.pop(bid, None)
+    MEMBER_NOTE_DATES.pop(bid, None)
     save_contrib_to_db(_merge_all_contrib())
+    save_notes_to_db(MEMBER_NOTES, MEMBER_NOTE_DATES)
     return RedirectResponse("/dashboard?tab=status", status_code=303)
 
 
@@ -1619,10 +1748,12 @@ async def admin_customer_add(request: Request):
         customer_add_to_db(cid, customer_password, sort_order, customer_equity)
     except sqlite3.IntegrityError:
         pass
-    global CUSTOMER_DATA
+    global CUSTOMER_DATA, MEMBER_NOTES
     if cid not in CUSTOMER_DATA:
         CUSTOMER_DATA[cid] = {y: [False] * 12 for y in _YEARS_TUPLE}
+        MEMBER_NOTES[cid] = ""
         save_contrib_to_db(_merge_all_contrib())
+        save_notes_to_db(MEMBER_NOTES, MEMBER_NOTE_DATES)
     return RedirectResponse("/dashboard?tab=status", status_code=303)
 
 
@@ -1651,9 +1782,12 @@ async def admin_customer_delete(request: Request, customer_id: str = Form(...)):
         return RedirectResponse("/dashboard", status_code=302)
     cid = customer_id.strip()
     customer_delete_from_db(cid)
-    global CUSTOMER_DATA
+    global CUSTOMER_DATA, MEMBER_NOTES, MEMBER_NOTE_DATES
     CUSTOMER_DATA.pop(cid, None)
+    MEMBER_NOTES.pop(cid, None)
+    MEMBER_NOTE_DATES.pop(cid, None)
     save_contrib_to_db(_merge_all_contrib())
+    save_notes_to_db(MEMBER_NOTES, MEMBER_NOTE_DATES)
     return RedirectResponse("/dashboard?tab=status", status_code=303)
 
 

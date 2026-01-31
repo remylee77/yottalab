@@ -14,6 +14,8 @@
         select { text-indent: 1px; text-overflow: ''; }
         .todo-detail-panel { max-height: 0; overflow: hidden; transition: max-height 0.35s ease-out; }
         .todo-detail-panel.expanded { max-height: 400px; transition: max-height 0.4s ease-in; }
+        .status-list-panel { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out; }
+        .status-list-panel.expanded { max-height: 1200px; transition: max-height 0.5s ease-in; }
     </style>
 </head>
 <body class="bg-[#fcfcfc] text-[#1a1a1a]">
@@ -59,36 +61,70 @@
                     <div class="flex items-center gap-4">
                         <span class="text-gray-500 font-medium">보여줄 대상:</span>
                         <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="audience_type" value="all" checked onchange="toggleAudienceSelect(false)">
+                            <input type="radio" name="audience_type" value="all" checked onchange="toggleAudienceSelect('')">
                             <span>공통 (전체)</span>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="audience_type" value="members" onchange="toggleAudienceSelect(false)">
+                            <input type="radio" name="audience_type" value="members" onchange="toggleAudienceSelect('')">
                             <span>공통 (멤버)</span>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="audience_type" value="partners" onchange="toggleAudienceSelect(false)">
+                            <input type="radio" name="audience_type" value="partners" onchange="toggleAudienceSelect('')">
                             <span>공통 (파트너)</span>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="audience_type" value="selected" onchange="toggleAudienceSelect(true)">
+                            <input type="radio" name="audience_type" value="backers" onchange="toggleAudienceSelect('')">
+                            <span>공통 (백커)</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="audience_type" value="customers" onchange="toggleAudienceSelect('')">
+                            <span>공통 (커스터머)</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="audience_type" value="selected" onchange="toggleAudienceSelect('member_partner')">
                             <span>선택한 멤버/파트너만</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="audience_type" value="selected_backers" onchange="toggleAudienceSelect('backer')">
+                            <span>선택한 백커만</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="audience_type" value="selected_customers" onchange="toggleAudienceSelect('customer')">
+                            <span>선택한 커스터머만</span>
                         </label>
                     </div>
                     <div id="audience-select" class="hidden flex flex-wrap gap-4 pl-4 border-l border-gray-200">
-                        <div>
-                            <span class="text-gray-500 text-xs block mb-1">멤버</span>
+                        <div id="audience-member-partner" class="flex flex-wrap gap-4">
+                            <div>
+                                <span class="text-gray-500 text-xs block mb-1">멤버</span>
+                                <div class="flex flex-wrap gap-2">
+                                    {% for m in members %}
+                                    <label class="flex items-center gap-1 text-xs cursor-pointer"><input type="checkbox" name="audience_{{ m.id }}" value="1">{{ m.id }}</label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div>
+                                <span class="text-gray-500 text-xs block mb-1">파트너</span>
+                                <div class="flex flex-wrap gap-2">
+                                    {% for p in partners %}
+                                    <label class="flex items-center gap-1 text-xs cursor-pointer"><input type="checkbox" name="audience_{{ p.id }}" value="1">{{ p.id }}</label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        <div id="audience-backer" class="hidden">
+                            <span class="text-gray-500 text-xs block mb-1">백커</span>
                             <div class="flex flex-wrap gap-2">
-                                {% for m in members %}
-                                <label class="flex items-center gap-1 text-xs cursor-pointer"><input type="checkbox" name="audience_{{ m.id }}" value="1">{{ m.id }}</label>
+                                {% for b in backers %}
+                                <label class="flex items-center gap-1 text-xs cursor-pointer"><input type="checkbox" name="audience_{{ b.id }}" value="1">{{ b.id }}</label>
                                 {% endfor %}
                             </div>
                         </div>
-                        <div>
-                            <span class="text-gray-500 text-xs block mb-1">파트너</span>
+                        <div id="audience-customer" class="hidden">
+                            <span class="text-gray-500 text-xs block mb-1">커스터머</span>
                             <div class="flex flex-wrap gap-2">
-                                {% for p in partners %}
-                                <label class="flex items-center gap-1 text-xs cursor-pointer"><input type="checkbox" name="audience_{{ p.id }}" value="1">{{ p.id }}</label>
+                                {% for c in customers %}
+                                <label class="flex items-center gap-1 text-xs cursor-pointer"><input type="checkbox" name="audience_{{ c.id }}" value="1">{{ c.id }}</label>
                                 {% endfor %}
                             </div>
                         </div>
@@ -108,15 +144,15 @@
                             <input type="hidden" name="todo_id" value="{{ todo.id }}" />
                             <input type="number" name="todo_sort_order" value="{{ todo.sort_order or 0 }}" class="px-2 py-1 border rounded w-12 text-center text-sm" title="번호 (낮을수록 위)" min="0" />
                             <input type="text" name="todo_title" value="{{ todo.title }}" class="px-3 py-1 border rounded w-64 md:w-80 {{ 'line-through text-gray-400' if todo.done }}" />
-                            <input type="hidden" name="audience_type" value="{{ 'selected' if todo.audience and todo.audience not in ['all','members','partners'] else (todo.audience or 'all') }}" />
-                            {% if todo.audience and todo.audience not in ['all','members','partners'] %}
+                            <input type="hidden" name="audience_type" value="{{ infer_audience_type(todo.audience, backer_ids, customer_ids) }}" />
+                            {% if todo.audience and todo.audience not in ['all','members','partners','backers','customers'] %}
                             {% for uid in todo.audience.split(',') %}
                             {% if uid.strip() %}<input type="hidden" name="audience_{{ uid.strip() }}" value="1" />{% endif %}
                             {% endfor %}
                             {% endif %}
                             <button type="submit" class="text-xs text-indigo-600 hover:underline">수정</button>
                         </form>
-                        <span class="text-[10px] text-gray-400">({% if todo.audience == 'all' %}공통(전체){% elif todo.audience == 'members' %}공통(멤버){% elif todo.audience == 'partners' %}공통(파트너){% else %}선택: {{ todo.audience }}{% endif %})</span>
+                        <span class="text-[10px] text-gray-400">({% if todo.audience == 'all' %}공통(전체){% elif todo.audience == 'members' %}공통(멤버){% elif todo.audience == 'partners' %}공통(파트너){% elif todo.audience == 'backers' %}공통(백커){% elif todo.audience == 'customers' %}공통(커스터머){% else %}선택: {{ todo.audience }}{% endif %})</span>
                         <form method="post" action="/dashboard/admin/todo_delete/{{ todo.id }}" style="display:inline" onclick="event.stopPropagation()">
                             <button type="submit" class="text-xs text-red-400 hover:underline" onclick="return confirm('삭제할까요?');">삭제</button>
                         </form>
@@ -220,6 +256,10 @@
                             {% endfor %}
                             </div>
                         {% endfor %}
+                        <div class="mt-3 pt-3 border-t border-gray-100">
+                            <label class="block text-[10px] uppercase tracking-widest text-gray-400 mb-1">Note{% if member_note_dates.get(partner) %} <span class="font-normal text-gray-500">({{ format_note_date(member_note_dates.get(partner)) }})</span>{% endif %}</label>
+                            <input type="text" name="note_{{ partner }}" value="{{ member_notes.get(partner, '') }}" placeholder="한 줄 메모" class="w-full max-w-md px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-emerald-500" />
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
@@ -244,6 +284,10 @@
                             {% endfor %}
                             </div>
                         {% endfor %}
+                        <div class="mt-3 pt-3 border-t border-gray-100">
+                            <label class="block text-[10px] uppercase tracking-widest text-gray-400 mb-1">Note{% if member_note_dates.get(backer) %} <span class="font-normal text-gray-500">({{ format_note_date(member_note_dates.get(backer)) }})</span>{% endif %}</label>
+                            <input type="text" name="note_{{ backer }}" value="{{ member_notes.get(backer, '') }}" placeholder="한 줄 메모" class="w-full max-w-md px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-amber-500" />
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
@@ -268,6 +312,10 @@
                             {% endfor %}
                             </div>
                         {% endfor %}
+                        <div class="mt-3 pt-3 border-t border-gray-100">
+                            <label class="block text-[10px] uppercase tracking-widest text-gray-400 mb-1">Note{% if member_note_dates.get(customer) %} <span class="font-normal text-gray-500">({{ format_note_date(member_note_dates.get(customer)) }})</span>{% endif %}</label>
+                            <input type="text" name="note_{{ customer }}" value="{{ member_notes.get(customer, '') }}" placeholder="한 줄 메모" class="w-full max-w-md px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-sky-500" />
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
@@ -599,29 +647,45 @@
                 <p class="text-gray-500 text-lg">Only members can use this.</p>
             </div>
             {% else %}
-            <div class="mb-16">
-                <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-6 flex items-center">
+            <div class="mb-16" data-status-section="member">
+                <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-2 flex items-center cursor-pointer select-none hover:text-indigo-600 transition-colors" onclick="toggleStatusList('member')">
+                    <span id="status-arrow-member" class="mr-2 text-xs">▶</span>
                     <span class="w-8 h-px bg-gray-200 mr-4"></span> Member List
+                    <a href="/download/member_info.pdf" onclick="event.stopPropagation()" class="ml-4 px-2 py-1 text-[10px] bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100 transition" download>PDF</a>
                 </h3>
-                <div id="member-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+                <div id="status-panel-member" class="status-list-panel">
+                    <div id="member-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pt-4"></div>
+                </div>
             </div>
-            <div class="mb-16">
-                <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-6 flex items-center">
+            <div class="mb-16" data-status-section="partner">
+                <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-2 flex items-center cursor-pointer select-none hover:text-indigo-600 transition-colors" onclick="toggleStatusList('partner')">
+                    <span id="status-arrow-partner" class="mr-2 text-xs">▶</span>
                     <span class="w-8 h-px bg-gray-200 mr-4"></span> Partner List
+                    <a href="/download/partner_info.pdf" onclick="event.stopPropagation()" class="ml-4 px-2 py-1 text-[10px] bg-emerald-50 text-emerald-600 rounded hover:bg-emerald-100 transition" download>PDF</a>
                 </h3>
-                <div id="partner-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+                <div id="status-panel-partner" class="status-list-panel">
+                    <div id="partner-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pt-4"></div>
+                </div>
             </div>
-            <div class="mb-16">
-                <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-6 flex items-center">
+            <div class="mb-16" data-status-section="backer">
+                <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-2 flex items-center cursor-pointer select-none hover:text-indigo-600 transition-colors" onclick="toggleStatusList('backer')">
+                    <span id="status-arrow-backer" class="mr-2 text-xs">▶</span>
                     <span class="w-8 h-px bg-gray-200 mr-4"></span> Backer List
+                    <a href="/download/backer_info.pdf" onclick="event.stopPropagation()" class="ml-4 px-2 py-1 text-[10px] bg-amber-50 text-amber-600 rounded hover:bg-amber-100 transition" download>PDF</a>
                 </h3>
-                <div id="backer-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+                <div id="status-panel-backer" class="status-list-panel">
+                    <div id="backer-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pt-4"></div>
+                </div>
             </div>
-            <div>
-                <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-6 flex items-center">
+            <div data-status-section="customer">
+                <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-2 flex items-center cursor-pointer select-none hover:text-indigo-600 transition-colors" onclick="toggleStatusList('customer')">
+                    <span id="status-arrow-customer" class="mr-2 text-xs">▶</span>
                     <span class="w-8 h-px bg-gray-200 mr-4"></span> Customer List
+                    <a href="/download/customer_info.pdf" onclick="event.stopPropagation()" class="ml-4 px-2 py-1 text-[10px] bg-sky-50 text-sky-600 rounded hover:bg-sky-100 transition" download>PDF</a>
                 </h3>
-                <div id="customer-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+                <div id="status-panel-customer" class="status-list-panel">
+                    <div id="customer-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pt-4"></div>
+                </div>
             </div>
             {% endif %}
             {% endif %}
@@ -635,9 +699,26 @@
         const tooltipEl = document.getElementById('universe-tooltip');
         if (tooltipEl) tooltipEl.innerText = universeDescription;
 
-        function toggleAudienceSelect(show) {
-            const el = document.getElementById('audience-select');
-            if (el) el.classList.toggle('hidden', !show);
+        function toggleAudienceSelect(mode) {
+            const wrap = document.getElementById('audience-select');
+            const mp = document.getElementById('audience-member-partner');
+            const bk = document.getElementById('audience-backer');
+            const cu = document.getElementById('audience-customer');
+            if (!wrap) return;
+            wrap.classList.add('hidden');
+            if (mp) mp.classList.add('hidden');
+            if (bk) bk.classList.add('hidden');
+            if (cu) cu.classList.add('hidden');
+            if (mode === 'member_partner') {
+                wrap.classList.remove('hidden');
+                if (mp) mp.classList.remove('hidden');
+            } else if (mode === 'backer') {
+                wrap.classList.remove('hidden');
+                if (bk) bk.classList.remove('hidden');
+            } else if (mode === 'customer') {
+                wrap.classList.remove('hidden');
+                if (cu) cu.classList.remove('hidden');
+            }
         }
 
         function toggleTodoDetail(todoId) {
@@ -646,6 +727,14 @@
             const isExpanded = panel.classList.toggle('expanded');
             const li = panel.closest('li');
             const arrow = li ? li.querySelector('.todo-arrow') : null;
+            if (arrow) arrow.textContent = isExpanded ? '▼' : '▶';
+        }
+
+        function toggleStatusList(type) {
+            const panel = document.getElementById('status-panel-' + type);
+            const arrow = document.getElementById('status-arrow-' + type);
+            if (!panel) return;
+            const isExpanded = panel.classList.toggle('expanded');
             if (arrow) arrow.textContent = isExpanded ? '▼' : '▶';
         }
 
